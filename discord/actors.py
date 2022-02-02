@@ -191,13 +191,15 @@ async def create_new_actor_with_role(guild, role, actor_id : str, is_gm : bool=F
 	chat_hub_creation = asyncio.create_task(channels.create_personal_channel(
 		guild,
 		role,
-		channels.get_chat_hub_name(actor_id)
+		channels.get_chat_hub_name(actor_id),
+		actor_id
 	))
 
 	finances_creation = asyncio.create_task(channels.create_personal_channel(
 		guild,
 		role,
 		channels.get_finance_name(actor_id),
+		actor_id,
 		read_only=True
 	))
 

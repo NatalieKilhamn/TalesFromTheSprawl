@@ -13,6 +13,7 @@ from custom_types import PlayerData, Handle, ActionResult
 
 import discord
 import asyncio
+import math
 from configobj import ConfigObj
 from typing import List
 
@@ -79,7 +80,7 @@ def get_all_players():
 def player_exists(player_id : str):
 	return player_id in get_all_players()
 
-def is_player(actor_id : str):
+def is_player(player_id : str):
 	return player_id in get_all_players()
 
 def store_player_data(player_data : PlayerData):
@@ -100,7 +101,10 @@ def get_player_id(user_id : str, expect_to_find=True):
 			raise RuntimeError(f'User {user_id} has not been initialized as a player. Fix that first.')
 		else:
 			return None
-	return players[user_id_mappings_index][user_id];
+	return players[user_id_mappings_index][user_id]
+
+def get_player_category_index(player_id: str):
+	return math.floor(int(player_id[-2:]) / 9)
 
 
 def get_next_player_index():
@@ -134,7 +138,8 @@ async def create_player(member, handle_id : str=None):
 	cmd_line_channel = await channels.create_personal_channel(
 		member.guild,
 		role,
-		channels.get_cmd_line_name(new_player_id)
+		channels.get_cmd_line_name(new_player_id),
+		new_player_id
 	)
 
 	# Edit user (change nick and add role):

@@ -728,7 +728,11 @@ async def get_chat_ui_for_inactive_session(guild, chat_state, participant : Chat
 
 async def create_channel_for_chat_session(guild, chat_state, participant : ChatParticipant):
 	archived = participant.session_status in [session_status_open_archive, session_status_closed_archive]
-	channel = await channels.create_chat_session_channel_no_role(guild, participant.channel_name, read_only=archived)
+	if players.is_player(participant.actor_id):
+		category_index = players.get_player_category_index(participant.actor_id)
+	else:
+		category_index = 6
+	channel = await channels.create_chat_session_channel_no_role(guild, participant.channel_name, read_only=archived, category_index=category_index)
 	await channel.send(
 		(
 			f'```This is the start of {participant.channel_name}. '
