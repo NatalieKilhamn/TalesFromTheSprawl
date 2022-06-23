@@ -131,14 +131,15 @@ async def init():
     for elem in channel_states:
         del channel_states[elem]
     channel_states.write()
+
+    task_list_categories = (asyncio.create_task(verify_category_exists(cat, channels)) for cat, channels in all_categories)
+    await asyncio.gather(*task_list_categories)
+
     channel_list = await server.get_all_channels()
 
     for c in channel_list:
         print("Setting roles for %s" % c.name)
         await init_discord_channel(c)
-
-    task_list_categories = (asyncio.create_task(verify_category_exists(cat)) for cat in all_categories)
-    await asyncio.gather(*task_list_categories)
 
 
 async def init_discord_channel(discord_channel):
@@ -170,11 +171,22 @@ async def init_discord_channel(discord_channel):
         print(f'Will not create channel state for channel {discord_channel.name} which has no category')
 
 
-async def verify_category_exists(category_name : str):
+async def verify_category_exists(category_name: str, channels: list):
     guild = server.get_guild()
     if not category_name in [cat.name for cat in guild.categories]:
         print("Did not find category %s, will create it" % category_name)
         await guild.create_category(category_name)
+
+    category = next((cat for cat in guild.categories if cat.name == category_name), None)
+    channels_tasks = (
+        asyncio.create_task(verify_channel_exists(category, channel))
+        for channel in channels)
+    await asyncio.gather(*channels_tasks)
+
+async def verify_channel_exists(category, channel_name: str):
+    if not channel_name in [ch.name for ch in category.channels]:
+        await category.create_text_channel(channel_name)
+
 
 async def init_channel_state(discord_channel):
     await discord_channel.edit(slowmode_delay=slowmode_delay)

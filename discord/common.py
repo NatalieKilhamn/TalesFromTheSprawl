@@ -46,8 +46,7 @@ def letter_emoji(letter : str):
 	return emoji.emojize(string, use_aliases=True)
 
 
-# channels
-
+# Channels
 shops_category_name = 'public_business'
 off_category_name = 'offline'
 public_open_category_name = 'public_network'
@@ -63,18 +62,20 @@ num_per_player_category_groups = 7 # 6 for regular players, one for non-player e
 
 
 base_categories = [
-	gm_announcements_name,
-	announcements_category_name,
-	off_category_name,
-	public_open_category_name,
-	shadowlands_category_name,
-	shops_category_name,
-	groups_category_name,
-	setup_category_name,
-	testing_category_name]
-pa_categories =	[(personal_category_base + str(i)) for i in range(num_per_player_category_groups)]
-chats_categories = [(chats_category_base + str(i)) for i in range(num_per_player_category_groups)]
+	(off_category_name, ["off_general", "off_teknikhjälp"]),
+	(setup_category_name, ["landing_page"]),
+	(announcements_category_name, [gm_announcements_name]),
+	(testing_category_name, ["cmd_line_gm", "off_intrig"]),
+	(public_open_category_name, ["open_channel", "marketplace", "news_seattle", "politics", "gossips_and_pics", "vents_and_rants", "you_are_drunk", "anon"]),
+	(shops_category_name, []),
+	(shadowlands_category_name, []),
+	(groups_category_name, [])
+]
+
+pa_categories = [(personal_category_base + str(i), []) for i in range(num_per_player_category_groups)]
+chats_categories = [(chats_category_base + str(i), []) for i in range(num_per_player_category_groups)]
 all_categories = itertools.chain(base_categories, pa_categories, chats_categories)
+
 
 # Roles
 all_players_role_name = '251'
