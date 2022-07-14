@@ -73,7 +73,7 @@ class ShoppingCog(commands.Cog, name='shopping'):
 		if not allowed:
 			return
 
-		buyer_handle : custom_types.Handle = handles.get_handle(buyer)
+		buyer_handle : Handle = handles.get_handle(buyer)
 		report = await order_product_for_buyer(shop_name, product_name, buyer_handle)
 		if report is not None:
 			await ctx.send(report)
@@ -1872,7 +1872,7 @@ def clear_order_semaphores_for_shop(shop_id : str):
 async def order_product(shop : Shop, product : Product, buyer_handle : Handle):
 	result = ActionResult()
 	if not product.in_stock:
-		return f'Sorry - {shop_name} is all out of {product_name}!'
+		return f'Sorry - {shop.name} is all out of {product.name}!'
 
 	delivery_id = get_delivery_id(shop.shop_id, buyer_handle.actor_id)
 	if delivery_id is None:

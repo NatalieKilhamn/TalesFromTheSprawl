@@ -181,7 +181,7 @@ def get_cmd_line_channels_for_handles(handles : List[str]):
 
 
 def get_cmd_line_channel_for_handle(handle : Handle):
-	actor : Actor = actors.get_actor_for_handle(handle)
+	actor : actors.Actor = actors.get_actor_for_handle(handle)
 	if actor is not None:
 		return get_cmd_line_channel(actor.actor_id)
 
