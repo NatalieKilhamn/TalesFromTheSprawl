@@ -1,4 +1,3 @@
-import re
 import emoji
 import itertools
 

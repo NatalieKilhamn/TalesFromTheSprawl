@@ -1,6 +1,6 @@
 import simplejson
 from enum import Enum
-from typing import List, Set
+from typing import List
 from copy import deepcopy
 
 class ActionResult(object):

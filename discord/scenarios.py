@@ -3,7 +3,6 @@
 # This module handles the creation and execution of scenarios, which are automated sequences of in-game events.
 # A scenario could be for example a simulated network crash, automated spam messages, or creation of a new group.
 
-import discord
 import asyncio
 import simplejson
 from configobj import ConfigObj
@@ -13,15 +12,8 @@ from copy import deepcopy
 
 import players
 import handles
-import channels
-import server
-import finances
 import groups
-import shops
-import actors
 import game
-from shops import Shop
-from custom_types import Handle, HandleTypes, Actor, ActionResult
 
 
 class EventType(str, Enum):

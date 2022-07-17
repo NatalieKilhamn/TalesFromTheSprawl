@@ -1,11 +1,7 @@
-import discord
-import asyncio
 import simplejson
 from configobj import ConfigObj
-from enum import Enum
 from typing import List
 
-import players
 import handles
 import channels
 import server
@@ -297,7 +293,7 @@ async def setup_shops(actor_id : str, shop_names : List[str], is_owner : bool):
 			report = f'=== **{shop_name.upper()}** ===\n'
 			if is_owner:
 				if shop.owner_id != handle.actor_id:
-					report += f'Error: according to the database {handle.actor_id} should be the owner of the shop **{trinity_taskbar}**, but it is owned by {shop.owner_id}.\n'
+					report += f'Error: according to the database {handle.actor_id} should be the owner of the shop **{shop_name}**, but it is owned by {shop.owner_id}.\n'
 				else:
 					report += f'You are the owner of the shop **{shop_name}**.\n'
 			else:

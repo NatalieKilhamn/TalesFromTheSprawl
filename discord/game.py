@@ -1,7 +1,5 @@
 #module game.py
 
-import discord
-import asyncio
 from enum import Enum
 
 import players

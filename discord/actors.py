@@ -4,7 +4,6 @@
 
 import channels
 import handles
-import reactions
 import finances
 import common
 import server
@@ -17,7 +16,6 @@ from common import emoji_cancel, emoji_open
 import discord
 import asyncio
 from configobj import ConfigObj
-import re
 
 actors_conf_dir = 'actors'
 finance_channel_mapping_index = '___finance_channels'

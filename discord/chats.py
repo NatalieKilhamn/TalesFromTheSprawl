@@ -14,7 +14,7 @@ import posting
 import gm
 import game
 from common import emoji_cancel, emoji_open, emoji_green, emoji_red, emoji_green_book, emoji_red_book, emoji_unread
-from custom_types import Handle, HandleTypes, PostTimestamp
+from custom_types import Handle, PostTimestamp
 
 
 
@@ -800,7 +800,7 @@ def generate_hub_msg_closed_archived_session(chat_title : str, handle_id : str):
 def generate_hub_msg(handle_id : str, session_status : str, chat_title : str=None, discord_channel=None):
 	if session_status == session_status_active:
 		if discord_channel is None:
-			raise RuntimeError(f'Attempted to write chat hub msg for active session, but there is no channel. Dump: {participant.to_string()}')
+			raise RuntimeError(f'Attempted to write chat hub msg for active session, but there is no channel. Dump: {handle_id}')
 		return generate_hub_msg_active_session(discord_channel, handle_id)
 	elif session_status == session_status_inactive:
 		return generate_hub_msg_inactive_session(chat_title, handle_id)

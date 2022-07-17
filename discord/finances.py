@@ -2,7 +2,6 @@ import channels
 import handles
 import actors
 import players
-import server
 from custom_types import Transaction, TransTypes, Handle, HandleTypes, PostTimestamp
 from common import coin, transaction_collector, transaction_collected
 
@@ -96,7 +95,7 @@ class FinancesCog(commands.Cog, name='finances'):
             response = f'Error: cannot transfer less than {coin} 1. Use \".pay <recipient> <amount>\", e.g. \".pay {handle_recip} 500\".'
         else:
             player_id = players.get_player_id(str(ctx.message.author.id))
-            transaction : custom_types.Transaction = await try_to_pay_from_actor(player_id, handle_recip, amount)
+            transaction : Transaction = await try_to_pay_from_actor(player_id, handle_recip, amount)
             response = transaction.report
         await ctx.send(response)
 

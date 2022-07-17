@@ -6,7 +6,7 @@ import server
 #import player_setup
 import channels
 import game
-from common import forbidden_content, forbidden_content_print, coin
+from common import coin
 from custom_types import Handle, HandleTypes, ActionResult
 
 from discord.ext import commands

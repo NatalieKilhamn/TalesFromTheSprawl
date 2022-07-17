@@ -1,5 +1,4 @@
 import channels
-import handles
 import common
 import server
 import actors
@@ -7,9 +6,9 @@ import shops
 import player_setup
 from groups import Group
 
-from common import coin, highest_ever_index, player_personal_role_start, admin_role_name, gm_role_name
+from common import highest_ever_index, player_personal_role_start, admin_role_name, gm_role_name
 
-from custom_types import PlayerData, Handle, ActionResult
+from custom_types import PlayerData, Handle
 
 import discord
 import asyncio

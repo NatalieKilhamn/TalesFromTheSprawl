@@ -12,20 +12,17 @@ import asyncio
 import simplejson
 
 from configobj import ConfigObj
-from typing import List, Tuple
-from copy import deepcopy
-from enum import Enum
+from typing import List
 
 # Custom imports
 import common
 import channels
-import actors
 import server
 import players
 import handles
 
-from common import emoji_alert, emoji_accept, group_role_start, highest_ever_index
-from custom_types import ActionResult, Handle, HandleTypes
+from common import group_role_start, highest_ever_index
+from custom_types import Handle, HandleTypes
 
 
 # TODO: show members?

@@ -1,6 +1,4 @@
 import actors
-import players
-import groups
 import player_setup
 import scenarios
 import artifacts
@@ -10,8 +8,6 @@ import handles
 
 from discord.ext import commands
 from dotenv import load_dotenv
-import discord
-import asyncio
 import os
 
 

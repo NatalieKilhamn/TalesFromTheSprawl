@@ -5,7 +5,6 @@ import discord
 from custom_types import PostTimestamp, ChannelIdentifier
 from common import all_categories, personal_category_base, shops_category_name, chats_category_base, off_category_name, public_open_category_name, shadowlands_category_name, groups_category_name, announcements_category_name, gm_announcements_name, setup_category_name, testing_category_name
 
-import actors
 import server
 import asyncio
 import players

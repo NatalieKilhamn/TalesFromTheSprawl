@@ -3,19 +3,13 @@
 # This module handles the creation and execution of in-game artifacts, which are items that can be accessed through
 # logging in with codes.
 
-import discord
-import asyncio
 import simplejson
 from configobj import ConfigObj
-from enum import Enum
 from typing import List
 from copy import deepcopy
 from discord.ext import commands
 
 import channels
-import server
-import finances
-import actors
 
 #TODO: reinitialise?
 

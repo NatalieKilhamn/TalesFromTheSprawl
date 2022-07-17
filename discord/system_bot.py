@@ -1,11 +1,8 @@
 # bot.py
 import os
-import random
 import discord
 import asyncio
 import re
-
-from configobj import ConfigObj
 
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -22,13 +19,10 @@ import chats
 import server
 import shops
 import groups
-import player_setup
-import scenarios
 import game
 import artifacts
 import gm
 import logger
-from common import coin
 
 
 load_dotenv()

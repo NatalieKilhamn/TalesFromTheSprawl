@@ -7,7 +7,6 @@ import handles
 
 from discord.ext import commands
 import discord
-import asyncio
 
 ### Module admin.py
 # This module holds the admin cog, which is used to

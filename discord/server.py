@@ -1,5 +1,4 @@
 import discord
-import asyncio
 from typing import List
 
 from common import system_role_name, admin_role_name, all_players_role_name, gm_role_name, new_player_role_name
