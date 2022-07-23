@@ -44,8 +44,6 @@ bot = commands.Bot(
     help_command = help_command
 )
 
-guild = None
-
 # Below cogs represents our folder our cogs are in. Following is the file name. So 'meme.py' in cogs, would be cogs.meme
 # Think of it like a dot path import
 initial_extensions = ['handles', 'finances', 'admin', 'chats', 'shops', 'gm', 'artifacts']
@@ -57,20 +55,18 @@ if __name__ == '__main__':
 
 @bot.event
 async def on_ready():
-    global guild
     global guild_name
-    clear_all = False
-    guild = discord.utils.find(lambda g: g.name == guild_name, bot.guilds)
+    clear_all = (os.getenv('CLEAR_ALL') == 'true')
     # TODO: move some of the initialisation to the cogs instead
-    await server.init(bot, guild)
+    await server.init(bot.guilds)
     await handles.init(clear_all)
-    await actors.init(guild, clear_all=clear_all)
-    await players.init(guild, clear_all=clear_all)
+    await actors.init(clear_all=clear_all)
+    await players.init(clear_all=clear_all)
     await channels.init()
     finances.init_finances()
     await chats.init(clear_all=clear_all)
-    await shops.init(guild, clear_all=clear_all)
-    await groups.init(guild, clear_all=clear_all)
+    await shops.init(clear_all=clear_all)
+    await groups.init(clear_all=clear_all)
     reactions.init()
     artifacts.init(clear_all=clear_all)
     await gm.init(clear_all=clear_all)

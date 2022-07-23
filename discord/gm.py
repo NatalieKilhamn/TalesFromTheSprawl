@@ -106,13 +106,9 @@ class GmCog(commands.Cog, name=gm_role_name):
 		allowed = await channels.pre_process_command(ctx)
 		if not allowed:
 			return
-		sem_id = await handles.get_semaphore('init_gm')
-		if sem_id is None:
-			await ctx.send('Failed: system is too busy. Wait a few minutes and try again.')
-		else:
+		async with handles.semaphore():
 			await init(clear_all=True)
-			await ctx.send('Done.')
-			handles.return_semaphore(sem_id)
+		await ctx.send('Done.')
 
 
 def setup(bot):
@@ -121,13 +117,13 @@ def setup(bot):
 async def init(clear_all : bool=False):
 	exists = actors.actor_exists(gm_actor_id)
 	if exists and clear_all:
-		await actors.clear_actor(server.get_guild(), gm_actor_id)
+		await actors.clear_actor(gm_actor_id)
 	if not exists or clear_all:
 		await create_gm_actor()
 
 async def create_gm_actor():
 	actor : actors.Actor = await actors.create_gm_actor(
-		server.get_guild(),
+		server.get_guild(),			# always use the first guild for gm
 		role_name=gm_role_name,
 		actor_id=gm_actor_id)
 	response = await player_setup.setup_handles_no_welcome_new_player(gm_actor_id, gm_actor_id)

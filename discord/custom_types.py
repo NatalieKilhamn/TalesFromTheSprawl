@@ -34,17 +34,11 @@ class PostTimestamp(object):
 
 	def pretty_print(self, second : int=-1):
 		# Manual DST fix
-		hour_str = str(self.hour)
-		if self.minute < 10:
-			minute_str = f'0{self.minute}'
-		else:
-			minute_str = str(self.minute)
+		hour_str = str(self.hour) if self.hour >= 10 else f'0{self.hour}'
+		minute_str = str(self.minute) if self.minute >= 10 else f'0{self.minute}'
 		result = f'{hour_str}:{minute_str}'
 		if second >= 0 and second < 60:
-			if second < 10:
-				second_str = f'0{second}'
-			else:
-				second_str = str(second)
+			second_str = str(second) if second >= 10 else f'0{second}'
 			result += f':{second_str}'
 		return result
 
@@ -124,32 +118,18 @@ class Transaction(object):
 			)
 
 
-class ChannelIdentifier(object):
-	def __init__(self, discord_channel_id : str = None, chat_channel_name : str = None):
-		self.discord_channel_id = discord_channel_id
-		self.chat_channel_name = chat_channel_name
-
-	@staticmethod
-	def from_string(string : str):
-		obj = ChannelIdentifier()
-		obj.__dict__ = simplejson.loads(string)
-		return obj
-
-	def to_string(self):
-		return simplejson.dumps(self.__dict__)
-
-
 class Actor(object):
 	def __init__(
 		self,
 		role_name : str,
 		actor_id : str,
+		guild_id: int,
 		finance_channel_id : int,
 		finance_stmt_msg_id : int,
 		chat_channel_id : int):
 		self.role_name = role_name
-		self.role_name = role_name
 		self.actor_id = actor_id
+		self.guild_id = guild_id
 		self.finance_channel_id = finance_channel_id
 		self.finance_stmt_msg_id = finance_stmt_msg_id
 		self.chat_channel_id = chat_channel_id
@@ -164,7 +144,7 @@ class Actor(object):
 
 	@staticmethod
 	def from_string(string : str):
-		obj = Actor(None, None, 0, 0, 0)
+		obj = Actor(None, None, 0, 0, 0, 0)
 		obj.__dict__ = simplejson.loads(string)
 		return obj
 

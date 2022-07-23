@@ -204,7 +204,7 @@ def init_finances():
 def init_finances_for_handle(handle : Handle, overwrite : bool=True):
     file_name = f'{finances_conf_dir}/{handle.handle_id}.conf'
     finances_conf = ConfigObj(file_name)
-    if not finances_conf or overwrite:
+    if overwrite:
         for entry in finances_conf:
             del finances_conf[entry]
     if balance_index not in finances_conf:
@@ -290,11 +290,10 @@ def get_all_handles_balance_report(actor_id : str):
             any_npc_found = True
             report += '[OFF: Current balance for NPC accounts you control:]\n'
         balance = get_current_balance(handle)
-        balance_str = str(balance)
         if handle.handle_id == current_handle.handle_id:
-            report = report + f'> [**{handle.handle_id}**: {coin} **{balance_str}**]\n'
+            report = report + f'> [**{handle.handle_id}**: {coin} **{balance}**]\n'
         else:
-            report = report + f'> [{handle.handle_id}: {coin} **{balance_str}**]\n'
+            report = report + f'> [{handle.handle_id}: {coin} **{balance}**]\n'
 
     report += 'Current balance for all your accounts:\n'
     total = 0
@@ -495,29 +494,6 @@ def record_transaction_internal(transaction : Transaction):
     if transaction.recip_actor is not None:
         recip_record = InternalTransRecord.from_transaction(transaction, for_payer=False)
         add_internal_record(transaction.recip, recip_record)
-
-
-async def generate_internal_record_for_payer(transaction : Transaction):
-    if transaction.payer_actor is None:
-        return None
-    if transaction.payer_actor == transaction.recip_actor:
-        if transaction.cause == TransTypes.Burn:
-            # Will be generated for the recipient
-            return None
-        else:
-            return generate_record_self_transfer(transaction)
-    if transaction.cause == TransTypes.Transfer:
-        return generate_record_payer(transaction)
-    if transaction.cause == TransTypes.ChatReact:
-        # TODO add more info
-        return generate_record_payer(transaction)
-    if transaction.cause == TransTypes.Collect:
-        return generate_record_collected(transaction)
-    if transaction.cause == TransTypes.ShopOrder:
-        return generate_record_buyer(transaction)
-    if transaction.cause == TransTypes.ShopRefund:
-        # Will not be recorded -- the original transaction will just vanish instead
-        await actors.refresh_financial_statement(transaction.payer_actor)
 
 
 async def generate_record_for_payer(transaction : Transaction):

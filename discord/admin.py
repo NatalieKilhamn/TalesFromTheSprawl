@@ -24,19 +24,19 @@ class AdminCog(commands.Cog, name='admin'):
 
 	# Admin-only commands for testing etc.
 
-	# This command is not safe right now.
-	#@commands.command(
-	#	name='init_all_players',
-	#	help='Admin-only. Initialise all current members of the server as players.',
-	#	hidden=True
-	#	)
-	#@commands.has_role('gm')
-	#async def init_all_players_command(self, ctx):
-	#	allowed = await channels.pre_process_command(ctx)
-	#	if not allowed:
-	#		return
-	#	await players.initialise_all_users()
-	#	await ctx.send('Done.')
+	#This command is not safe right now.
+	@commands.command(
+		name='init_all_players',
+		help='Admin-only. Initialise all current members of the server as players.',
+		hidden=True
+		)
+	@commands.has_role('gm')
+	async def init_all_players_command(self, ctx):
+		allowed = await channels.pre_process_command(ctx)
+		if not allowed:
+			return
+		await players.initialise_all_users()
+		await ctx.send('Done.')
 
 	@commands.command(
 		name='fake_join',
@@ -53,15 +53,11 @@ class AdminCog(commands.Cog, name='admin'):
 		elif handle is None:
 			await ctx.send(f'Failed: you must give the player\'s main handle.')
 		else:
-			sem_id = await handles.get_semaphore(user_id)
-			if sem_id is None:
-				await ctx.send('Failed: system is too busy. Wait a few minutes and try again.')
-			else:
+			async with handles.semaphore():
 				report = await players.create_player(member_to_fake_join, handle)
 				if report is None:
 					report = "Done."
-				await ctx.send(report)
-				handles.return_semaphore(sem_id)
+			await ctx.send(report)
 
 	@commands.command(
 		name='fake_join_name',
@@ -79,15 +75,11 @@ class AdminCog(commands.Cog, name='admin'):
 		elif handle is None:
 			await ctx.send(f'Failed: you must give the player\'s main handle.')
 		else:
-			sem_id = await handles.get_semaphore(str(member_to_fake_join.id))
-			if sem_id is None:
-				await ctx.send('Failed: system is too busy. Wait a few minutes and try again.')
-			else:
+			async with handles.semaphore():
 				report = await players.create_player(member_to_fake_join, handle)
 				if report is None:
 					report = "Done."
-				await ctx.send(report)
-				handles.return_semaphore(sem_id)
+			await ctx.send(report)
 
 	@commands.command(
 		name='fake_join_nick',
@@ -104,15 +96,11 @@ class AdminCog(commands.Cog, name='admin'):
 		elif handle is None:
 			await ctx.send(f'Failed: you must give the player\'s main handle.')
 		else:
-			sem_id = await handles.get_semaphore(str(member_to_fake_join.id))
-			if sem_id is None:
-				await ctx.send('Failed: system is too busy. Wait a few minutes and try again.')
-			else:
+			async with handles.semaphore():
 				report = await players.create_player(member_to_fake_join, handle)
 				if report is None:
 					report = "Done."
-				await ctx.send(report)
-				handles.return_semaphore(sem_id)
+			await ctx.send(report)
 
 	# This command ONLY works in the landing page channel.
 	# Note: no other commands work in the landing page channel!
@@ -131,19 +119,14 @@ class AdminCog(commands.Cog, name='admin'):
 		elif handle is None or handle == 'handle' or handle == '<handle>':
 			await self.send_response_in_landing_page(ctx, '```You must say which handle is yours! Example: \".join shadow_weaver\"```')
 		else:
-			sem_id = await handles.get_semaphore(str(member.id))
-			if sem_id is None:
-				await self.send_response_in_landing_page(ctx, '```Failed: system is too busy. Wait a few minutes and try again.```')
-			else:
+			async with handles.semaphore():
 				# TODO give player some sort of warning about using lower-case only
 				handle_id = handle.lower()
 				report = await players.create_player(member, handle_id)
-				if report is not None:
-					await self.send_response_in_landing_page(ctx, f'```Failed: invalid starting handle \"{handle_id}\" (or handle is already taken).```')
-				else:
-					message = ctx.message
-					await server.swallow(message, alert=False);
-				handles.return_semaphore(sem_id)
+			if report is not None:
+				await self.send_response_in_landing_page(ctx, f'```Failed: invalid starting handle \"{handle_id}\" (or handle is already taken).```')
+			else:
+				await server.swallow(ctx.message, alert=False)
 
 	async def send_response_in_landing_page(self, ctx, response : str):
 		if response is not None:
@@ -159,7 +142,7 @@ class AdminCog(commands.Cog, name='admin'):
 		allowed = await channels.pre_process_command(ctx)
 		if not allowed:
 			return
-		await players.init(ctx.guild, clear_all=True)
+		await players.init(clear_all=True)
 		try:
 			await ctx.send('Done.')
 		except discord.errors.NotFound:
@@ -175,7 +158,7 @@ class AdminCog(commands.Cog, name='admin'):
 		allowed = await channels.pre_process_command(ctx)
 		if not allowed:
 			return
-		await actors.init(ctx.guild, clear_all=True)
+		await actors.init(clear_all=True)
 		try:
 			await ctx.send('Done.')
 		except discord.errors.NotFound:
@@ -191,7 +174,7 @@ class AdminCog(commands.Cog, name='admin'):
 		allowed = await channels.pre_process_command(ctx)
 		if not allowed:
 			return
-		report = await actors.clear_actor(ctx.guild, actor_id)
+		report = await actors.clear_actor(actor_id)
 		try:
 			await ctx.send(report)
 		except discord.errors.NotFound:
@@ -248,7 +231,7 @@ class AdminCog(commands.Cog, name='admin'):
 		allowed = await channels.pre_process_command(ctx)
 		if not allowed:
 			return
-		await groups.init(ctx.guild, clear_all=True)
+		await groups.init(clear_all=True)
 		await ctx.send('Done.')
 
 

@@ -132,35 +132,10 @@ async def process_reaction_in_order_flow(message_id : int, user_id : int, channe
 
 reactions_semaphores = {}
 
-async def get_reaction_semaphore(user_id : str):
-	global reactions_semaphores
-	sem_value = str(random.randrange(10000))
-	number_iterations = 0
-	while True:
-		if user_id not in reactions_semaphores:
-			reactions_semaphores[user_id] = sem_value
-			await asyncio.sleep(0.5)
-			if reactions_semaphores[user_id] == sem_value:
-				break
-		await asyncio.sleep(0.5)
-		number_iterations += 1
-		if number_iterations > 120:
-			print(f'Error: semaphore probably stuck! Resetting semaphore for {user_id}.')
-			if user_id in reactions_semaphores:
-				del reactions_semaphores[user_id]
-			return None
-	return sem_value
-
-
-def return_reaction_semaphore(user_id : str, sem_value :str):
-	global reactions_semaphores
-	if user_id in reactions_semaphores:
-		if reactions_semaphores[user_id] == sem_value:
-			del reactions_semaphores[user_id]
-		else:
-			print(f'Semaphore error: Tried to return semaphore for {user_id} but it was taken by another process.')
-	else:
-		print(f'Semaphore error: tried to return semaphore for {user_id} but it was already free!')
+def get_reaction_semaphore(user_id : str):
+	if reactions_semaphores.get(user_id) is None:
+		reactions_semaphores[user_id] = asyncio.Semaphore(1)
+	return reactions_semaphores[user_id]
 
 def clear_reaction_semaphores():
 	global reactions_semaphores
@@ -177,10 +152,9 @@ async def process_reaction_add(message_id : int, user_id : int, channel, emoji):
 		return
 
 	# Semaphore handling to ensure we only process one action per player at a time:
-	semaphore = await get_reaction_semaphore(user_id)
-	print(f'User reacted with {emoji}')
-	should_remove_reaction = True
-	if semaphore is not None:
+	async with get_reaction_semaphore(user_id):
+		print(f'User reacted with {emoji}')
+		should_remove_reaction = True
 		try:
 			if channels.is_anonymous_channel(channel):
 				# Reactions are allowed in anonymous channels, but trigger no effects
@@ -203,10 +177,6 @@ async def process_reaction_add(message_id : int, user_id : int, channel, emoji):
 		except discord.errors.NotFound:
 			# If the message has already been removed, processing will fail and we just move on
 			pass
-		return_reaction_semaphore(user_id, semaphore)
-	else:
-		pass
-		print(f'Error: failed to get reaction semaphore. Will ignore this reaction and move on.')
 
 	if should_remove_reaction:
 		try:

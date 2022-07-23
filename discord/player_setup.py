@@ -111,7 +111,8 @@ def can_setup_new_player_with_handle(main_handle : str):
 	return handle.handle_type == HandleTypes.Unused
 
 async def setup_handles_and_welcome_new_player(player : PlayerData, main_handle : str):
-	channel = channels.get_discord_channel(str(player.cmd_line_channel_id))
+	guild = actors.get_guild_for_actor(player.player_id)
+	channel = channels.get_discord_channel(str(player.cmd_line_channel_id), guild.id)
 	if channel is None:
 		print(f'Error: Failed to welcome player {player.player_id} -- no cmd line channel found!')
 		return False
@@ -216,7 +217,7 @@ async def setup_handles_no_welcome_new_player(actor_id : str, main_handle : str)
 	await setup_groups(actor_id, info.groups)
 
 	for (shops_list, is_owner) in [(info.shops_owner, True), (info.shops_employee, False)]:
-		async for content in setup_shops(actor_id, shops_list, is_owner):
+		async for _ in setup_shops(actor_id, shops_list, is_owner):
 			pass
 
 
@@ -259,13 +260,13 @@ def get_all_connected_aliases_of_type_report(handle_type : HandleTypes, last_exa
 
 
 async def setup_groups(actor_id : str, group_names : List[str]):
-	guild = server.get_guild()
 	any_found = False
 	report = ''
+	guild = actors.get_guild_for_actor(actor_id)
 	for group_name in remove_examples(group_names):
 		any_found = True
-		await setup_group_for_new_member(guild, group_name, actor_id)
-		channel = groups.get_main_channel(group_name)
+		await setup_group_for_new_member(group_name, actor_id)
+		channel = groups.get_main_channel(guild, group_name)
 		report += f'- **{group_name}**: {channels.clickable_channel_ref(channel)}\n'
 	if any_found:
 		report = ('=== **COMMUNITIES** ===\nEach community has a private chat room that is invisible to outsiders:\n' +
@@ -273,20 +274,20 @@ async def setup_groups(actor_id : str, group_names : List[str]):
 			'  Keep in mind that you can access these channels using any of your handles!')
 	return report
 
-async def setup_group_for_new_member(guild, group_name : str, actor_id : str):
+async def setup_group_for_new_member(group_name : str, actor_id : str):
 	if Group.exists(group_name):
 		report = await groups.add_member_from_player_id(group_name, actor_id)
 	else:
-		await groups.create_new_group(guild, group_name, [actor_id])
+		await groups.create_new_group(group_name, [actor_id])
 
 
 async def setup_shops(actor_id : str, shop_names : List[str], is_owner : bool):
-	guild = server.get_guild()
 	handle : Handle = handles.get_active_handle(actor_id)
 	if handle is None:
 		return
+	guild = actors.get_guild_for_actor(actor_id)
 	for shop_name in remove_examples(shop_names):
-		shop : Shop = await setup_shop_for_member(guild, shop_name, handle, is_owner)
+		shop : Shop = await setup_shop_for_member(shop_name, handle, is_owner)
 		if shop is None:
 			report = f'Error: failed to gain access to **{shop_name}**. Most likely the player data entry for {handle.actor_id} is corrupt.\n\n'
 		else:
@@ -299,7 +300,7 @@ async def setup_shops(actor_id : str, shop_names : List[str], is_owner : bool):
 			else:
 				report += f'You are employed at **{shop_name}**.\n'
 			report += f'Use \".help employee\" to see the commands you can use to manage the business.\n'
-			report += f'  Public storefront: {channels.clickable_channel_id_ref(shop.storefront_channel_id)}.\n'
+			report += f'  Public storefront: {channels.clickable_channel_id_ref(shop.get_storefront_channel_id(guild))}.\n'
 			report += f'  Order status: {channels.clickable_channel_id_ref(shop.order_flow_channel_id)}.\n'
 			shop_actor : Actor = actors.read_actor(shop.shop_id)
 			report += f'  Financial status: {channels.clickable_channel_id_ref(shop_actor.finance_channel_id)}.\n'
@@ -308,14 +309,15 @@ async def setup_shops(actor_id : str, shop_names : List[str], is_owner : bool):
 		yield report
 
 
-async def setup_shop_for_member(guild, shop_name : str, handle : Handle, is_owner : bool):
+async def setup_shop_for_member(shop_name : str, handle : Handle, is_owner : bool):
 	if shops.shop_exists(shop_name):
 		shop : Shop = shops.read_shop(shop_name)
-		await shops.employ(guild, handle, shop, is_owner=is_owner)
+		await shops.employ(handle, shop, is_owner=is_owner)
 		return shop
 	else:
-		result : ActionResult = await shops.create_shop(guild, shop_name, handle.actor_id, is_owner=is_owner)
+		result : ActionResult = await shops.create_shop(shop_name, handle.actor_id, is_owner=is_owner)
 		if result.success:
 			return shops.read_shop(shop_name)
 		else:
+			print(f'Failed to setup shop for member: {result.report}')
 			return None

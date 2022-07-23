@@ -27,22 +27,22 @@ def get_actors_confobj():
 		actors.write()
 	return actors
 
-async def init(guild, clear_all=False):
-	await shops.init(guild, clear_all=clear_all)
-	await players.init(guild, clear_all=clear_all)
+async def init(clear_all=False):
+	await shops.init(clear_all=clear_all)
+	await players.init(clear_all=clear_all)
 	get_actors_confobj() # ensures it's properly initialised
 	if clear_all:
 		for actor_id in get_all_actor_ids():
-			await clear_actor(guild, actor_id)
+			await clear_actor(actor_id)
 		await channels.delete_all_personal_channels()
 		await handles.clear_all_handles()
 	else:
 		for actor in get_all_actors():
 			await handles.init_handles_for_actor(actor.actor_id, overwrite=False)
 			# TODO: re-map all personal channels?
-	await delete_all_actor_roles(guild, spare_used=(not clear_all))
+	await delete_all_actor_roles(spare_used=(not clear_all))
 
-async def clear_actor(guild, actor_id : str):
+async def clear_actor(actor_id : str):
 	if actor_exists(actor_id):
 		# TODO: clear out/archive chat participants from all chats? Not required unless we expect to create and destroy actors during game
 		actor = read_actor(actor_id)
@@ -56,14 +56,14 @@ async def clear_actor(guild, actor_id : str):
 		await channels.delete_all_personal_channels(channel_suffix=actor.actor_id)
 		await handles.clear_all_handles_for_actor(actor_id)
 		shops.delete_delivery_ids_for_actor(actor_id)
-		await delete_all_actor_roles(guild, spare_used=True)
+		await delete_all_actor_roles(spare_used=True)
 		return 'Done'
 	else:
 		return f'Could not find actor {actor_id}'
 
 
-async def delete_all_actor_roles(guild, spare_used : bool):
-	task_list = (asyncio.create_task(delete_if_actor_role(r, spare_used)) for r in guild.roles)
+async def delete_all_actor_roles(spare_used : bool):
+	task_list = (asyncio.create_task(delete_if_actor_role(r, spare_used)) for guild in server.get_guilds() for r in guild.roles)
 	await asyncio.gather(*task_list)
 
 async def delete_if_actor_role(role, spare_used : bool):
@@ -75,9 +75,10 @@ async def delete_if_actor_role(role, spare_used : bool):
 async def is_actor_role(name :str):
 	return common.is_player_role(name) or common.is_shop_role(name)
 
-def get_actor_role(guild, actor_id : str):
+def get_actor_role(actor_id : str):
 	actor = read_actor(actor_id)
 	if actor is not None:
+		guild = server.get_guild(actor.guild_id)
 		return discord.utils.find(lambda role: role.name == actor.role_name, guild.roles)
 
 
@@ -165,8 +166,8 @@ def clear_trans_memory(actor_id : str):
 
 
 
-async def give_actor_access(guild, channel, actor_id : str):
-	role = get_actor_role(guild, actor_id)
+async def give_actor_access(channel, actor_id : str):
+	role = get_actor_role(actor_id)
 	await server.give_role_access(channel, role)
 
 async def create_new_actor(guild, actor_index : str, actor_id : str, existing_role_name : str=None):
@@ -214,6 +215,7 @@ async def create_new_actor_with_role(guild, role, actor_id : str, is_gm : bool=F
 	actor = Actor(
 		role_name=role.name,
 		actor_id=actor_id,
+		guild_id=guild.id,
 		finance_channel_id=finances_channel.id,
 		finance_stmt_msg_id=0,
 		chat_channel_id=chat_hub_channel.id)
@@ -237,6 +239,12 @@ async def send_startup_message_chat_hub(channel, actor_id : str, is_gm : bool):
 		content += f'Once you have started a chat, you will see it below, and you can close and re-open it by clicking the {emoji_cancel} and {emoji_open} below the message.\n '
 	await channel.send(content)
 
+def get_guild_for_actor(actor_id: str):
+	my_actor = read_actor(actor_id)
+	if my_actor is None:
+		raise RuntimeError(f"Unable to get guild for actor: Cannot find actor with id {actor_id}")
+	return server.get_guild(my_actor.guild_id)
+
 def get_actor_for_handle(handle_id : str):
 	handle : handles.Handle = handles.get_handle(handle_id)
 	if handle.actor_id is not None:
@@ -245,22 +253,22 @@ def get_actor_for_handle(handle_id : str):
 def get_finance_channel_for_handle(handle : str):
 	actor : Actor = get_actor_for_handle(handle)
 	if actor is not None:
-		return channels.get_discord_channel(actor.finance_channel_id)
+		return channels.get_discord_channel(actor.finance_channel_id, actor.guild_id)
 
 def get_finance_channel(actor_id : str):
 	actor : Actor = read_actor(actor_id)
 	if actor is not None:
-		return channels.get_discord_channel(actor.finance_channel_id)
+		return channels.get_discord_channel(actor.finance_channel_id, actor.guild_id)
 
 def get_chat_hub_channel_for_handle(handle : str):
 	actor : Actor = get_actor_for_handle(handle)
 	if actor is not None:
-		return channels.get_discord_channel(actor.chat_channel_id)
+		return channels.get_discord_channel(actor.chat_channel_id, actor.guild_id)
 
 def get_chat_hub_channel(actor_id : str):
 	actor : Actor = read_actor(actor_id)
 	if actor is not None:
-		return channels.get_discord_channel(actor.chat_channel_id)
+		return channels.get_discord_channel(actor.chat_channel_id, actor.guild_id)
 
 
 async def get_financial_statement(channel, actor : Actor):
@@ -286,7 +294,7 @@ async def refresh_financial_statement(actor_id : str):
 	actor = read_actor(actor_id)
 	if actor is None:
 		raise RuntimeError(f'Trying to write financial record but could not find which actor it belongs to.')
-	channel = channels.get_discord_channel(actor.finance_channel_id)
+	channel = channels.get_discord_channel(actor.finance_channel_id, actor.guild_id)
 	await update_financial_statement(channel, actor)
 
 async def write_financial_record(transaction : Transaction, payer_record : str=None, recip_record : str=None):
@@ -319,7 +327,7 @@ async def send_financial_record_for_actor(actor_id : str, record : str, last_in_
 		actor = read_actor(actor_id)
 		if actor is None:
 			raise RuntimeError(f'Trying to write financial record but could not find which actor it belongs to.')
-		channel = channels.get_discord_channel(actor.finance_channel_id)
+		channel = channels.get_discord_channel(actor.finance_channel_id, actor.guild_id)
 		message = await channel.send(record)
 		if last_in_sequence:
 			await update_financial_statement(channel, actor)
@@ -330,7 +338,6 @@ async def lock_tentative_transaction(actor_id : str, msg_id : str):
 	channel = get_finance_channel(actor_id)
 	if channel is None:
 		raise RuntimeError(f'Error: trying to edit financial record but could not find the channel for {actor_id}.')
-		return
 	try:
 		message = await channel.fetch_message(int(msg_id))
 		await message.clear_reactions()
@@ -367,7 +374,8 @@ async def process_reaction_in_finance_channel(channel_id : str, msg_id : str, em
 	if transaction is not None:
 		print(f'Attempted refund, success: {transaction.success}, report: {transaction.report}')
 		if not transaction.success and transaction.report is not None:
-			channel = channels.get_discord_channel(channel_id)
+			actor = read_actor(actor_id)
+			channel = channels.get_discord_channel(channel_id, actor.guild_id)
 			await channel.send(content=transaction.report, delete_after=10)
 		
 

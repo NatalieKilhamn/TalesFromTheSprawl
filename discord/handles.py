@@ -84,11 +84,8 @@ class HandlesCog(commands.Cog, name='handles'):
         allowed = await channels.pre_process_command(ctx, allow_chat_hub=False)
         if not allowed:
             return
-        sem_id = await get_semaphore(f'burning_{burner_name}')
-        if sem_id is None:
-            return 'Failed: system is too busy. Wait a few minutes and try again.'
-        response = await process_burn_command(ctx, burner_name)
-        return_semaphore(sem_id)
+        async with semaphore():
+            response = await process_burn_command(ctx, burner_name)
         await self.send_command_response(ctx, response)
 
     async def send_command_response(self, ctx, response : str):
@@ -109,12 +106,9 @@ class HandlesCog(commands.Cog, name='handles'):
         allowed = await channels.pre_process_command(ctx)
         if not allowed:
             return
-        sem_id = await get_semaphore('clear_all_handles')
-        if sem_id is None:
-            return 'Failed: system is too busy. Wait a few minutes and try again.'
-        await clear_all_handles()
-        await actors.init(ctx.guild, clear_all=False)
-        return_semaphore(sem_id)
+        async with semaphore():
+            await clear_all_handles()
+            await actors.init(clear_all=False)
         await ctx.send('Done.')
 
     @commands.command(
@@ -128,44 +122,18 @@ class HandlesCog(commands.Cog, name='handles'):
         allowed = await channels.pre_process_command(ctx)
         if not allowed:
             return
-        sem_id = await get_semaphore(f'removing_{handle_id}')
-        if sem_id is None:
-            return 'Failed: system is too busy. Wait a few minutes and try again.'
-        report = await process_remove_handle_command(ctx, handle_id)
-        return_semaphore(sem_id)
+        async with semaphore():
+            report = await process_remove_handle_command(handle_id)
         await self.send_command_response(ctx, report)
 
 def setup(bot):
     bot.add_cog(HandlesCog(bot))
 
 
-handles_semaphore = None
+handles_semaphore = asyncio.Semaphore(1)
 
-async def get_semaphore(user_id : str):
-    global handles_semaphore
-    sem_id = user_id + '_' + str(random.randrange(10000))
-    number_iterations = 0
-    while True:
-        if handles_semaphore is None:
-            handles_semaphore = sem_id
-            await asyncio.sleep(0.5)
-            if handles_semaphore == sem_id:
-                break
-        await asyncio.sleep(0.5)
-        number_iterations += 1
-        if number_iterations > 120:
-            print(f'Error: semaphore probably stuck! Resetting semaphore for {sem_id}.')
-            handles_semaphore = None
-            return None
-    return sem_id
-
-def return_semaphore(sem_id : str):
-    global handles_semaphore
-    if handles_semaphore == sem_id:
-        handles_semaphore = None
-    else:
-        print(f'Semaphore error for \"handle edit\": tried to return semaphore for {sem_id} but it was already free!')
-
+def semaphore():
+    return handles_semaphore
 
 
 # 'handles' is the config object holding each user's current handles.
@@ -390,7 +358,7 @@ def get_handles_for_actor_of_types(actor_id : str, types_list : List[HandleTypes
 ### Methods directly related to commands
 
 
-async def process_remove_handle_command(ctx, handle_id : str):
+async def process_remove_handle_command(handle_id : str):
     if handle_id is None:
         return 'Error: you must say which handle you want to clear.'
     handle : Handle = get_handle(handle_id)
@@ -457,7 +425,7 @@ def all_handles_report(actor_id : str, third_person : bool=False):
     return report
 
 
-def switch_to_own_existing_handle(actor_id : str, handle : Handle, expected_type : HandleTypes):
+def switch_to_own_existing_handle(handle : Handle, expected_type : HandleTypes):
     if handle.handle_type == HandleTypes.Burner:
         if expected_type in [HandleTypes.Regular, HandleTypes.Burner]:
             # We can switch to a burner handle using both .handle and .burner
@@ -524,30 +492,27 @@ async def process_handle_command(ctx, new_handle_id : str=None, burner : bool=Fa
             response += ' To create a new burner, use \".burner <new_name>\".'
     else:
         # Entry point for possibly editing handles:
-        sem_id = await get_semaphore(f'switching_to_{new_handle_id}')
-        if sem_id is None:
-            return 'Failed: system is too busy. Wait a few minutes and try again.'
+        async with semaphore():
+            existing_handle : Handle = get_handle(new_handle_id)
+            handle_type = HandleTypes.Regular
+            if burner:
+                handle_type = HandleTypes.Burner
+            elif npc:
+                handle_type = HandleTypes.NPC
 
-        existing_handle : Handle = get_handle(new_handle_id)
-        handle_type = HandleTypes.Regular
-        if burner:
-            handle_type = HandleTypes.Burner
-        elif npc:
-            handle_type = HandleTypes.NPC
-
-        if existing_handle.handle_type != HandleTypes.Unused:
-            if existing_handle.actor_id == actor_id:
-                response = switch_to_own_existing_handle(actor_id, existing_handle, handle_type)
-            elif existing_handle.handle_id != new_handle_id:
-                response = f'Error: cannot create handle {new_handle_id} because its internal ID ({existing_handle.handle_id}) clashes with an existing handle.'
+            if existing_handle.handle_type != HandleTypes.Unused:
+                if existing_handle.actor_id == actor_id:
+                    response = switch_to_own_existing_handle(existing_handle, handle_type)
+                elif existing_handle.handle_id != new_handle_id:
+                    response = f'Error: cannot create handle {new_handle_id} because its internal ID ' + \
+                               f'({existing_handle.handle_id}) clashes with an existing handle.'
+                else:
+                    response = f'Error: the handle {new_handle_id} not available.'
             else:
-                response = f'Error: the handle {new_handle_id} not available.'
-        else:
-            result = await create_handle_and_switch(actor_id, new_handle_id, handle_type)
-            response = result.report
-        if existing_handle.handle_id != new_handle_id:
-            response += f'\nNote that handles are lowercase only: {new_handle_id} -> **{existing_handle.handle_id}**.'
-        return_semaphore(sem_id)
+                result = await create_handle_and_switch(actor_id, new_handle_id, handle_type)
+                response = result.report
+            if existing_handle.handle_id != new_handle_id:
+                response += f'\nNote that handles are lowercase only: {new_handle_id} -> **{existing_handle.handle_id}**.'
 
     return response
 
@@ -574,7 +539,7 @@ async def get_full_handles_report_for_handle(handle_id : str):
 #Burners
 
 # returns the amount of money (if any) that was transferred away from the burner
-async def destroy_burner(guild, burner : Handle):
+async def destroy_burner(burner : Handle):
     balance = 0
     # If we burn the active handle, we must figure out the new active one
     active : Handle = get_active_handle(burner.actor_id)
@@ -611,7 +576,7 @@ async def process_burn_command(ctx, burner_id : str=None):
         elif burner.handle_type in [HandleTypes.Regular, HandleTypes.NPC]:
             response = f'Error: **{burner_id}** is not a burner handle, cannot be destroyed. To stop using it, simply switch to another handle.'
         elif burner.handle_type == HandleTypes.Burner:
-            amount = await destroy_burner(ctx.guild, burner)
+            amount = await destroy_burner(burner)
             current_handle_id = get_active_handle_id(actor_id)
             response = 'Destroyed burner handle **' + burner_id + '**.\n'
             response = response + 'It will not be possible to use again, for anyone. Its previous use cannot be traced to you.\n'

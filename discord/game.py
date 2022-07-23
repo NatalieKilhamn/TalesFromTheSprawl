@@ -1,11 +1,11 @@
 #module game.py
 
+import asyncio
 from enum import Enum
 
 import players
 import channels
 import player_setup
-import server
 import handles
 import chats
 from common import gm_announcements_name
@@ -61,11 +61,9 @@ meta_handles = {'admin', 'system', 'gm', 'arr', 'eclipse'} # TODO create dynamic
 
 
 def is_handle_reserved(handle_id : str):
-	global reserved_handles
 	return handle_id in reserved_handles
 
 def init():
-	global reserved_handles
 	for handle in player_setup.get_all_reserved():
 		reserved_handles.add(handle)
 	# TODO: purge landig page, send welcome message
@@ -88,12 +86,24 @@ def is_2party_chat_possible(handle_a : str, handle_b : str):
 
 async def check_alerts(message_string : str, channel, user_id : str):
 	if 'welcome the tree of light' in message_string:
-		guild = server.get_guild()
-		alerts_channel = channels.get_discord_channel_from_name(guild, gm_announcements_name)
+		alerts_channels = channels.get_discord_channels_from_name(gm_announcements_name)
+		if not alerts_channels:
+			print(f'Warning: Could not send gm announcement - no channels found')
 		sender = players.get_player_id(user_id)
 		handle = handles.get_active_handle_id(sender)
-		if handle is None:
-			content = f'Sent by {sender} in {channels.clickable_channel_ref(channel)}:\n> ' + message_string
-		else:
-			content = f'Sent by {handle} ({sender}) in {channels.clickable_channel_ref(channel)}:\n> ' + message_string
-		await alerts_channel.send(content)
+		send_tasks = (asyncio.create_task(_send_alert_msg(alerts_channel, sender, handle, channel, message_string))
+				      for alerts_channel in alerts_channels)
+		await asyncio.gather(*send_tasks)
+
+async def _send_alert_msg(target_channel, sender, handle, sent_in_channel, message_string):
+	if target_channel.guild.id != sent_in_channel.guild.id:
+		channel_link = f'{sent_in_channel.name} (on another guild)'
+	else:
+		channel_link = channels.clickable_channel_ref(sent_in_channel)
+
+	if handle is None:
+		content = f'Sent by {sender} in {channel_link}:\n> ' + message_string
+	else:
+		content = f'Sent by {handle} ({sender}) in {channel_link}:\n> ' + message_string
+
+	await target_channel.send(content)

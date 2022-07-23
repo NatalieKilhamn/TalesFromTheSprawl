@@ -29,7 +29,7 @@ def get_players_confobj():
 
 
 # TODO: loop through all users, find their player_ids and re-map personal channels if not available
-async def init(guild, clear_all=False):
+async def init(clear_all=False):
 	players = get_players_confobj()
 	if not user_id_mappings_index in players or clear_all:
 		players[user_id_mappings_index] = {}
@@ -37,15 +37,15 @@ async def init(guild, clear_all=False):
 		players[user_id_mappings_index][highest_ever_index] = str(player_personal_role_start)
 	if clear_all:
 		for player_id in get_all_players():
-			await clear_player(guild, player_id)
+			await _clear_player(player_id)
 			del players[player_id]
-	await delete_all_player_roles(guild, spare_used=not clear_all)
+	await _delete_all_player_roles(spare_used=not clear_all)
 
 	players.write()
 
 
-async def delete_all_player_roles(guild, spare_used : bool):
-	task_list = (asyncio.create_task(delete_if_player_role(r, spare_used)) for r in guild.roles)
+async def _delete_all_player_roles(spare_used : bool):
+	task_list = (asyncio.create_task(delete_if_player_role(r, spare_used)) for guild in server.get_guilds() for r in guild.roles)
 	await asyncio.gather(*task_list)
 
 async def delete_if_player_role(role, spare_used : bool):
@@ -53,8 +53,8 @@ async def delete_if_player_role(role, spare_used : bool):
 		if not spare_used or len(role.members) == 0:
 			await role.delete()
 
-async def clear_player(guild, player_id : str):
-	await actors.clear_actor(guild, player_id)
+async def _clear_player(player_id : str):
+	await actors.clear_actor(player_id)
 	await channels.delete_all_personal_channels(player_id)
 	player : PlayerData = read_player_data(player_id)
 	for shop_id in player.shops:
@@ -66,8 +66,7 @@ async def clear_player(guild, player_id : str):
 			await group.remove_member(player_id)
 
 async def initialise_all_users():
-	guild = server.get_guild()
-	task_list = (asyncio.create_task(create_player(m)) for m in guild.members if not m.bot)
+	task_list = (asyncio.create_task(create_player(m)) for guild in server.get_guilds() for m in guild.members if not m.bot)
 	await asyncio.gather(*task_list)
 
 def get_all_players():
@@ -98,12 +97,11 @@ def get_player_id(user_id : str, expect_to_find=True):
 	if not user_id in players[user_id_mappings_index]:
 		if expect_to_find:
 			raise RuntimeError(f'User {user_id} has not been initialized as a player. Fix that first.')
-		else:
-			return None
+		return None
 	return players[user_id_mappings_index][user_id]
 
 def get_player_category_index(player_id: str):
-	return math.floor(int(player_id[-2:]) / 9)
+	return math.floor(int(player_id[-2:]) % 6)
 
 
 def get_next_player_index():
@@ -127,7 +125,7 @@ async def create_player(member, handle_id : str=None):
 
 	# A player is a type of actor, so we start by creating an actor for this member/user
 	actor : actors.Actor = await actors.create_new_actor(member.guild, actor_index=new_player_index, actor_id=new_player_id)
-	role = actors.get_actor_role(member.guild, actor.actor_id)
+	role = actors.get_actor_role(actor.actor_id)
 	
 	players = get_players_confobj()
 	players[user_id_mappings_index][user_id] = new_player_id
@@ -144,10 +142,10 @@ async def create_player(member, handle_id : str=None):
 	# Edit user (change nick and add role):
 	new_roles = member.roles
 	new_roles.append(role)
-	all_players_role = server.get_all_players_role()
+	all_players_role = server.get_all_players_role(member.guild)
 	if all_players_role not in new_roles:
-		new_roles.append(server.get_all_players_role())
-	new_player_role = server.get_new_player_role()
+		new_roles.append(all_players_role)
+	new_player_role = server.get_new_player_role(member.guild)
 	new_roles = [r for r in new_roles if r.name != new_player_role.name]
 	await member.edit(roles=new_roles)
 	try:
@@ -161,8 +159,8 @@ async def create_player(member, handle_id : str=None):
 	success = await player_setup.setup_handles_and_welcome_new_player(player_data, handle_id)
 	if not success:
 		return(f'Error! Created player {player_data.player_id} but could not set up handle {handle_id}!')
-	else:
-		return None
+	
+	return None
 
 
 def get_cmd_line_channels_for_handles(handles : List[str]):
@@ -187,7 +185,8 @@ def get_cmd_line_channel_for_handle(handle : Handle):
 def get_cmd_line_channel(player_id : str):
 	data : PlayerData = read_player_data(player_id)
 	if data is not None:
-		return channels.get_discord_channel(data.cmd_line_channel_id)
+		guild = actors.get_guild_for_actor(player_id)
+		return channels.get_discord_channel(data.cmd_line_channel_id, guild.id)
 
 
 # Shops

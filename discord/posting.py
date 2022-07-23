@@ -3,6 +3,7 @@ import handles
 from common import forbidden_content, hard_space
 from custom_types import PostTimestamp
 import players
+import server
 
 import re
 import asyncio
@@ -31,8 +32,7 @@ def starts_with_bold(content : str):
     return content.startswith(forbidden_content)
 
 def add_space(content : str):
-    new = hard_space + content
-    return new
+    return hard_space + content
 
 def sanitize_bold(content : str):
     return add_space(content) if starts_with_bold(content) else content
@@ -64,11 +64,8 @@ async def repost_message_to_channel(channel, message, sender : str, recip : str=
     files = [await a.to_file() for a in message.attachments]
     await channel.send(post, files=files)
 
-async def repost_message(message, sender : str):
-    await repost_message_to_channel(message.channel, message, sender)
-
 async def process_open_message(message, anonymous=False):
-    task1 = asyncio.create_task(message.delete())
+    tasks = [asyncio.create_task(message.delete())]
     current_channel = str(message.channel.name)
     player_id = players.get_player_id(str(message.author.id))
     if player_id is None:
@@ -88,9 +85,11 @@ async def process_open_message(message, anonymous=False):
             current_poster_display_name = player_id
     post_time = PostTimestamp.from_datetime(message.created_at, dst_diff=2)
     full_post = channels.record_new_post(current_channel, current_poster_id, post_time)
-    if full_post:
-        task2 = asyncio.create_task(repost_message(message, current_poster_display_name))
-    else:
-        task2 = asyncio.create_task(repost_message(message, None))
-    await asyncio.gather(task1, task2)
+    mirrored_channels = await server.get_mirrored_channels(message.channel)
+    for channel in mirrored_channels:
+        if full_post:
+            tasks.append(asyncio.create_task(repost_message_to_channel(channel, message, current_poster_display_name)))
+        else:
+            tasks.append(asyncio.create_task(repost_message_to_channel(channel, message, None)))
+    await asyncio.gather(*tasks)
 
