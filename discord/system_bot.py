@@ -53,10 +53,32 @@ if __name__ == '__main__':
     for extension in initial_extensions:
         bot.load_extension(extension)
 
+async def _destroy_all():
+    for guild in bot.guilds:
+        channels = await guild.fetch_channels()
+        roles = await guild.fetch_roles()
+        for channel in channels:
+            print("Removing channel %s" % channel.name)
+            await channel.delete()
+        for category in guild.categories:
+            print("Removing category %s" % category.name)
+            await category.delete()
+        for role in roles:
+            if role.name in ["gm", "new_player"] or role.name.isdigit():
+                print("Removing role %s" % role.name)
+                await role.delete()
+
 @bot.event
 async def on_ready():
     global guild_name
     clear_all = (os.getenv('CLEAR_ALL') == 'true')
+    destroy_all = (os.getenv('DESTROY_ALL') == 'true')
+    if destroy_all:
+        await _destroy_all()
+        print("Cleaned up all channels, categories and roles")
+        await bot.close()
+        return
+
     # TODO: move some of the initialisation to the cogs instead
     await server.init(bot.guilds)
     await handles.init(clear_all)

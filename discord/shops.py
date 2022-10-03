@@ -407,7 +407,7 @@ class Employee(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = Employee(None)
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):
@@ -435,7 +435,7 @@ class Shop(object):
 	def from_string(string : str):
 		obj = Shop(None, None, None, None)
 		loaded_dict = simplejson.loads(string)
-		obj.__dict__ = loaded_dict
+		obj.__dict__.update(loaded_dict)
 		for i, employee_str in enumerate(loaded_dict['employees']):
 			obj.employees[i] = Employee.from_string(employee_str)
 		return obj
@@ -533,7 +533,7 @@ class Product(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = Product(None, None, None, None)
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):
@@ -578,7 +578,7 @@ class Order(object):
 	def from_string(string : str):
 		obj = Order(None, None, None)
 		loaded_dict = simplejson.loads(string)
-		obj.__dict__ = loaded_dict
+		obj.__dict__.update(loaded_dict)
 		obj.time_created : PostTimestamp = PostTimestamp.from_string(loaded_dict['time_created'])
 		obj.time_updated : PostTimestamp = PostTimestamp.from_string(loaded_dict['time_updated'])
 		return obj
@@ -624,7 +624,7 @@ class MsgOrderMapping(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = MsgOrderMapping(None, OrderStatus.Active)
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):
@@ -655,7 +655,7 @@ class StorefrontAction(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = StorefrontAction(StorefrontActionTypes.Order)
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):

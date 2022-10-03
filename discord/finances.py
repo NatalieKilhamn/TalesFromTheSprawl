@@ -160,7 +160,7 @@ class InternalTransRecord(object):
     def from_string(string : str):
         obj = InternalTransRecord(None, None, 0)
         loaded_dict = simplejson.loads(string)
-        obj.__dict__ = loaded_dict
+        obj.__dict__.update(loaded_dict)
         obj.timestamp : PostTimestamp = PostTimestamp.from_string(loaded_dict['timestamp'])
         return obj
 

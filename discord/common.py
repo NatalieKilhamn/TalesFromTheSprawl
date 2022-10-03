@@ -73,7 +73,10 @@ base_categories = [
 
 pa_categories = [(personal_category_base + str(i), []) for i in range(num_per_player_category_groups)]
 chats_categories = [(chats_category_base + str(i), []) for i in range(num_per_player_category_groups)]
-all_categories = itertools.chain(base_categories, pa_categories, chats_categories)
+
+
+def get_all_categories():
+	return itertools.chain(base_categories, pa_categories, chats_categories)
 
 
 # Roles

@@ -79,7 +79,7 @@ class FileArea(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = FileArea(None, None)
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):
@@ -98,7 +98,7 @@ class Artifact(object):
 	def from_string(string : str):
 		obj = Artifact(None)
 		loaded_dict = simplejson.loads(string)
-		obj.__dict__ = loaded_dict
+		obj.__dict__.update(loaded_dict)
 		for i, area_str in enumerate(loaded_dict['areas']):
 			obj.areas[i] = FileArea.from_string(area_str)
 		return obj

@@ -22,7 +22,7 @@ class PostTimestamp(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = PostTimestamp(0, 0)
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	@staticmethod
@@ -97,7 +97,7 @@ class Transaction(object):
 	def from_string(string : str):
 		obj = Transaction(None, None, None, None, 0)
 		loaded_dict = simplejson.loads(string)
-		obj.__dict__ = loaded_dict
+		obj.__dict__.update(loaded_dict)
 		obj.timestamp : PostTimestamp = PostTimestamp.from_string(loaded_dict['timestamp'])
 		return obj
 
@@ -145,7 +145,7 @@ class Actor(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = Actor(None, None, 0, 0, 0, 0)
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):
@@ -167,7 +167,7 @@ class PlayerData(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = PlayerData(None, 0)
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):
@@ -188,15 +188,17 @@ class Handle(object):
 		self,
 		handle_id : str,
 		handle_type : HandleTypes = HandleTypes.Unused,
-		actor_id : str=None):
+		actor_id : str=None,
+		auto_respond_message=None):
 		self.handle_id = handle_id.lower() if handle_id is not None else None
 		self.handle_type = handle_type
 		self.actor_id = actor_id
+		self.auto_respond_message = auto_respond_message
 
 	@staticmethod
 	def from_string(string : str):
 		obj = Handle(None)
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):

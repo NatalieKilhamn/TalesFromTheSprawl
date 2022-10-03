@@ -36,7 +36,7 @@ class PlayerSetupInfo(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = PlayerSetupInfo(None)
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):

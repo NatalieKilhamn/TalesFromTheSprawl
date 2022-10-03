@@ -4,7 +4,7 @@ import datetime
 import discord
 
 from custom_types import PostTimestamp
-from common import all_categories, personal_category_base, shops_category_name, chats_category_base, off_category_name, public_open_category_name, shadowlands_category_name, groups_category_name, announcements_category_name, gm_announcements_name, setup_category_name, testing_category_name
+from common import get_all_categories, personal_category_base, shops_category_name, chats_category_base, off_category_name, public_open_category_name, shadowlands_category_name, groups_category_name, announcements_category_name, gm_announcements_name, setup_category_name, testing_category_name
 
 import server
 import asyncio
@@ -114,13 +114,19 @@ async def init():
         del channel_states[elem]
     channel_states.write()
 
+    print("Found %d guilds" % len(server.get_guilds()))
     for guild in server.get_guilds():
-        task_list_categories = (asyncio.create_task(_verify_category_exists(guild, cat, channels)) for cat, channels in all_categories)
-        await asyncio.gather(*task_list_categories)
+        print("Processing guild %s" % guild.name)
+        await init_channels_and_categories(guild)
 
-        for c in guild.channels:
-            print("Setting roles for %s" % c.name)
-            await _init_discord_channel(c)
+
+async def init_channels_and_categories(guild):
+    task_list_categories = (asyncio.create_task(_verify_category_exists(guild, cat, channels)) for cat, channels in get_all_categories())
+    await asyncio.gather(*task_list_categories)
+
+    for c in guild.channels:
+        print("Setting roles for %s" % c.name)
+        await _init_discord_channel(c)
 
 
 async def _init_discord_channel(discord_channel):
@@ -156,6 +162,8 @@ async def _verify_category_exists(guild, category_name: str, channels: list):
     if not category_name in [cat.name for cat in guild.categories]:
         print("Did not find category %s, will create it" % category_name)
         await guild.create_category(category_name)
+    else:
+        print("Category already exists %s:%s" % (guild.name, category_name))
 
     category = next((cat for cat in guild.categories if cat.name == category_name), None)
     channels_tasks = (asyncio.create_task(_verify_channel_exists(category, channel)) for channel in channels)
@@ -164,6 +172,8 @@ async def _verify_category_exists(guild, category_name: str, channels: list):
 async def _verify_channel_exists(category, channel_name: str):
     if not channel_name in [ch.name for ch in category.channels]:
         await category.create_text_channel(channel_name)
+    else:
+        print("Channel already exists %s:%s" % (category.guild.name, channel_name))
 
 
 async def _init_channel_state(discord_channel):

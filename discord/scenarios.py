@@ -42,7 +42,7 @@ class WaitEvent(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = WaitEvent()
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):
@@ -66,7 +66,7 @@ class NetworkOutageEvent(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = NetworkOutageEvent()
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):
@@ -90,7 +90,7 @@ class NetworkDownEvent(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = NetworkDownEvent()
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):
@@ -111,7 +111,7 @@ class NetworkRestoredEvent(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = NetworkRestoredEvent()
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):
@@ -139,7 +139,7 @@ class MessagePlayersByHandleEvent(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = MessagePlayersByHandleEvent(None)
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):
@@ -165,7 +165,7 @@ class MessagePlayersExceptHandlesEvent(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = MessagePlayersExceptHandlesEvent(None)
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):
@@ -197,7 +197,7 @@ class MessageGroupsEvent(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = MessageGroupsEvent(None)
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):
@@ -229,7 +229,7 @@ class MessageExceptGroupsEvent(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = MessageExceptGroupsEvent(None)
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):
@@ -273,7 +273,7 @@ class Event(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = Event(EventType.Unknown, None)
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):
@@ -323,7 +323,7 @@ class Scenario(object):
 	def from_string(string : str):
 		obj = Scenario(None)
 		loaded_dict = simplejson.loads(string)
-		obj.__dict__ = loaded_dict
+		obj.__dict__.update(loaded_dict)
 		for i, step_str in enumerate(loaded_dict['steps']):
 			obj.steps[i] = Event.from_string(step_str)
 		return obj

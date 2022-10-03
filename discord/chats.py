@@ -210,7 +210,7 @@ class ChatParticipant(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = ChatParticipant(None, None, None, None, None, None)
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):
@@ -227,7 +227,7 @@ class ChatConnectionMapping(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = ChatConnectionMapping(None, None, None)
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):
@@ -249,7 +249,7 @@ class ChatLogEntry(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = ChatLogEntry(None)
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):
@@ -1030,7 +1030,7 @@ async def update_other_participant_after_archiving(
 	should_be_archived : bool):
 	guild = actors.get_guild_for_actor(participant.actor_id)
 	if should_be_archived:
-		participant = await archive_chat_for_participant(guild, chat_state, participant)
+		participant = await archive_chat_for_participant(chat_state, participant)
 		store_participant(participant.chat_name, participant)
 	else:
 		chat_ui = await get_chat_ui(guild, chat_state, participant)

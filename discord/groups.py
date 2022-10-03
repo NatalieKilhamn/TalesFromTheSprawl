@@ -46,7 +46,7 @@ class Group(object):
 	@staticmethod
 	def from_string(string : str):
 		obj = Group(None, None, None)
-		obj.__dict__ = simplejson.loads(string)
+		obj.__dict__.update(simplejson.loads(string))
 		return obj
 
 	def to_string(self):
