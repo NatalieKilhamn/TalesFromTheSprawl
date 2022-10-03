@@ -65,14 +65,14 @@ def remove_examples(entries : List[str]):
 			yield entry
 
 def remove_examples_from_firsts(entries : List):
-	for (a, b) in entries:
-		if double_underscore not in a:
-			yield (a, b)
+	for entry in entries:
+		if double_underscore not in entry[0]:
+			yield entry
 
 def only_firsts_no_examples(entries):
-	for (first, second) in entries:
-		if double_underscore not in first:
-			yield first
+	for entry in entries:
+		if double_underscore not in entry[0]:
+			yield entry[0]
 
 def add_known_handle(handle_id : str):
 	known_handles = ConfigObj('known_handles.conf')
@@ -224,13 +224,18 @@ async def setup_handles_no_welcome_new_player(actor_id : str, main_handle : str)
 async def setup_alternate_handles(actor_id : str, aliases, alias_type : HandleTypes):
 	result = ActionResult()
 	result.report = ''
-	for (other_handle_id, amount) in remove_examples_from_firsts(aliases):
+	for handle_data in remove_examples_from_firsts(aliases):
+		other_handle_id = handle_data[0]
+		amount = handle_data[1]
+		auto_respond_msg = handle_data[2] if len(handle_data) > 2 else None
+
 		# TODO: check if handle already exists and throw error
 		other_handle = await handles.create_handle(
 			actor_id,
 			other_handle_id,
 			alias_type,
-			force_reserved=True
+			force_reserved=True,
+			auto_respond_message=auto_respond_msg
 			)
 		if other_handle.handle_type != HandleTypes.Unused:
 			result.report += get_connected_alias_report(other_handle_id, alias_type, int(amount))

@@ -251,8 +251,8 @@ def store_handle(handle : Handle):
     actor_handles_conf.write()
 
 
-async def create_handle(actor_id : str, handle_id : str, handle_type : HandleTypes, force_reserved : bool=False):
-    handle = Handle(handle_id, handle_type = handle_type, actor_id = actor_id)
+async def create_handle(actor_id : str, handle_id : str, handle_type : HandleTypes, force_reserved : bool=False, auto_respond_message : str=None):
+    handle = Handle(handle_id, handle_type = handle_type, actor_id = actor_id, auto_respond_message = auto_respond_message)
     result : HandleAllowedResult = is_forbidden_handle(handle_id)
     if result == HandleAllowedResult.Allowed:
         store_handle(handle)

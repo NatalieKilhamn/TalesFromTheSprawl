@@ -1041,7 +1041,7 @@ async def update_other_participant_after_archiving(
 
 ### Messages in chat
 
-async def post_to_participant(chat_state, message, participant : ChatParticipant, poster_id : str, full_post : bool):
+async def post_to_participant(chat_state, msg_data : posting.MessageData, participant : ChatParticipant, poster_id : str, full_post : bool):
 	if participant.session_status != session_status_active:
 		# A new channel may be created => we should always include the full header on the first message
 		full_post = True
@@ -1055,7 +1055,7 @@ async def post_to_participant(chat_state, message, participant : ChatParticipant
 		else:
 			# Send the message to the open channel
 			poster_id = poster_id if full_post else None
-			await posting.repost_message_to_channel(chat_ui.channel, message, poster_id)
+			await posting.repost_message_to_channel(chat_ui.channel, msg_data, poster_id)
 	elif chat_ui.session_status == session_status_inactive:
 		# The channel was not opened when requested -- recipient must be at their chat session limit
 		participant.session_status = session_status_unread
@@ -1073,32 +1073,48 @@ async def post_to_participant(chat_state, message, participant : ChatParticipant
 		raise RuntimeError(f'Unexpected case! Dump: {participant.to_string()}, {chat_ui.session_status}')
 
 
-def create_reposting_tasks(chat_name : str, message, poster_id : str, full_post : bool):
+def create_reposting_tasks(chat_name : str, msg_data: posting.MessageData, poster_id : str, full_post : bool):
 	chat_state = get_chat_state(chat_name)
 	for participant in get_participants(chat_state):
-		yield asyncio.create_task(post_to_participant(chat_state, message, participant, poster_id, full_post))
+		yield asyncio.create_task(post_to_participant(chat_state, msg_data, participant, poster_id, full_post))
 
 async def process_message(message):
-	task1 = asyncio.create_task(message.delete())
+	await message.delete()
 
 	sender_channel = message.channel
 	chat_channel_data : ChatConnectionMapping = read_chat_connection_from_channel(sender_channel.guild.id, str(sender_channel.id))
 	if chat_channel_data is None:
 		return
+	await process_message_data(chat_channel_data, posting.MessageData.load_from_discord_message(message))
+	await auto_respond_if_needed(chat_channel_data, message)
+
+async def auto_respond_if_needed(chat_channel_data: ChatConnectionMapping, message: discord.Message):
+	chat_state = get_chat_state(chat_channel_data.chat_name)
+	for participant in get_participants(chat_state):
+		handle = handles.get_handle(participant.handle)
+		if handle.auto_respond_message:
+			actor = actors.read_actor(participant.actor_id)
+			chat_channel_data_2 : ChatConnectionMapping = read_chat_connection_from_channel(actor.guild_id, participant.channel_id)
+			if chat_channel_data_2:
+				print("Sending auto respond message for %s" % participant.handle)
+				await process_message_data(chat_channel_data_2, posting.MessageData(content=handle.auto_respond_message, created_at=message.created_at))
+				break
+
+async def process_message_data(chat_channel_data: ChatConnectionMapping, msg_data: posting.MessageData):
 	poster_id = chat_channel_data.handle
 	chat_name = chat_channel_data.chat_name
 
 	# With timestamps from discord, we must apply the DST diff compared to the python env timestamps
-	post_time = PostTimestamp.from_datetime(message.created_at, dst_diff=2)
+	post_time = PostTimestamp.from_datetime(msg_data.created_at, dst_diff=2)
 	full_post = channels.record_new_post(chat_channel_data.chat_name, poster_id, post_time)
-	tasks = create_reposting_tasks(chat_name, message, poster_id, full_post)
+	tasks = create_reposting_tasks(chat_name, msg_data, poster_id, full_post)
 
-	await asyncio.gather(task1, *tasks)
+	await asyncio.gather(*tasks)
 
 	# Write to the persistent log:
 	# TODO: also add header if it is the first message after someone disconnected
 	poster_id = poster_id if full_post else None
-	post = posting.create_post(message, poster_id, attachments_supported=False)
+	post = posting.create_post(msg_data, poster_id, attachments_supported=False)
 	entry = ChatLogEntry(post, full_post)
 	chat_state = get_chat_state(chat_name)
 	write_new_chat_log_entry(chat_name, entry)
