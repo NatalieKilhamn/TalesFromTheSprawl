@@ -48,17 +48,31 @@ class HandlesCog(commands.Cog, name='handles'):
     async def handle_command(self, ctx, new_handle : str=None):
         await self.handle_command_internal(ctx, new_handle, burner=False)
 
+        
+    @commands.command(
+        name='gm_handle',
+        brief='Show current handle or switch to another handle.',
+        help=(
+            'Show current handle, or switch to another handle for GM account.\n' +
+            'To show current, use \".gm_handle\"\n' +
+            'To switch, use \".gm_handle new_handle\"\n'
+            'The new handle can either be one you already control, or an unused one which will then be registered to you.'
+        ), hidden=True)
+    @commands.has_role('gm')
+    async def handle_command_gm(self, ctx, new_handle : str=None):
+        await self.handle_command_internal(ctx, new_handle, burner=False, use_gm_actor=True)
+
     @commands.command(name='burner', help='Create a new burner handle or switch to existing burner.')
     async def create_burner_command(self, ctx, new_burner : str=None):
         await self.handle_command_internal(ctx, new_burner, burner=True)
 
-    async def handle_command_internal(self, ctx, new_handle : str=None, burner : bool=False):
+    async def handle_command_internal(self, ctx, new_handle : str=None, burner : bool=False, use_gm_actor : bool=False):
         allowed = await channels.pre_process_command(ctx, allow_chat_hub=True)
         if not allowed:
             return
         # Note: this command may edit handles but may also be read-only.
         # The below function will claim handles semaphore if editing is required.
-        response = await process_handle_command(ctx, new_handle, burner=burner)
+        response = await process_handle_command(ctx, new_handle, burner=burner, use_gm_actor=use_gm_actor)
         await self.send_command_response(ctx, response)
 
     @commands.command(name='handles', help='Show all your handles.')
@@ -376,13 +390,16 @@ async def process_remove_handle_command(handle_id : str):
         return f'Removed handle {handle_id}. Warning: if the handle is re-created in the future, some things might not work since old chats etc may linger in the database.'
 
 def current_handle_report(actor_id : str):
+    import gm
+    is_gm_actor = gm.gm_actor_id == actor_id
+    cmd = '.handle' if not is_gm_actor else '.gm_handle'
     current_handle : Handle = get_active_handle(actor_id)
     if current_handle.handle_type == HandleTypes.Burner:
-        response = f'Your current handle is **{current_handle.handle_id}**. It\'s a burner handle – to destroy it, use \".burn {current_handle.handle_id}\". To switch handle, type \".handle <new_name>\".'
+        response = f'Your current handle is **{current_handle.handle_id}**. It\'s a burner handle – to destroy it, use \".burn {current_handle.handle_id}\". To switch handle, type \"{cmd} <new_name>\".'
     elif current_handle.handle_type == HandleTypes.NPC:
         response = f'Your current handle is **{current_handle.handle_id}**. [OFF: It\'s an NPC handle, so it cannot be directly linked to your other handles, unless they interact with it]'
     elif current_handle.handle_type == HandleTypes.Regular:
-        response = f'Your current handle is **{current_handle.handle_id}**. To switch handle, type \".handle <new_name>\".'
+        response = f'Your current handle is **{current_handle.handle_id}**. To switch handle, type \"{cmd} <new_name>\".'
     else:
         raise RuntimeError(f'Unexpected handle type of active handle. Dump: {current_handle.to_string()}')
     return response
@@ -484,8 +501,13 @@ async def create_handle_and_switch(
         result.report = (f'Error: failed to create {handle.handle_id}; reason unknown.')
     return result
 
-async def process_handle_command(ctx, new_handle_id : str=None, burner : bool=False, npc : bool=False):
-    actor_id = players.get_player_id(str(ctx.message.author.id))
+async def process_handle_command(ctx, new_handle_id : str=None, burner : bool=False, npc : bool=False, use_gm_actor : bool=False):
+    if use_gm_actor:
+        import gm
+        actor_id = gm.gm_actor_id
+    else:
+        actor_id = players.get_player_id(str(ctx.message.author.id))
+
     if new_handle_id == None:
         response = current_handle_report(actor_id)
         if burner:
