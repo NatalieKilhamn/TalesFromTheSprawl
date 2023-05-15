@@ -4,8 +4,10 @@ import groups
 import channels
 import server
 import handles
+import common
 
 from discord.ext import commands
+from discord import app_commands, Interaction
 import discord
 
 ### Module admin.py
@@ -25,216 +27,182 @@ class AdminCog(commands.Cog, name='admin'):
 	# Admin-only commands for testing etc.
 
 	#This command is not safe right now.
-	@commands.command(
+	@app_commands.command(
 		name='init_all_players',
-		help='Admin-only. Initialise all current members of the server as players.',
-		hidden=True
+		description='Admin-only. Initialise all current members of the server as players.'
 		)
-	@commands.has_role('gm')
-	async def init_all_players_command(self, ctx):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
+	@app_commands.checks.has_role('gm')
+	async def init_all_players_command(self, interaction: Interaction):
+		await interaction.response.defer(ephemeral=True)
 		await players.initialise_all_users()
-		await ctx.send('Done.')
+		await interaction.followup.send('Done.', ephemeral=True)
 
-	@commands.command(
+	@app_commands.command(
 		name='fake_join',
-		help='Admin-only. Initialise a user as a player.',
-		hidden=True)
-	@commands.has_role('gm')
-	async def fake_join_command(self, ctx, user_id, handle : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
-		member_to_fake_join = await ctx.guild.fetch_member(user_id)
+		description='Admin-only. Initialise a user as a player.')
+	@app_commands.checks.has_role('gm')
+	async def fake_join_command(self, interaction: Interaction, user_id: int, handle: str):
+		await interaction.response.defer(ephemeral=True)
+		member_to_fake_join = await interaction.guild.fetch_member(user_id)
 		if member_to_fake_join is None:
-			await ctx.send(f'Failed: member with user_id {user_id} not found.')
+			await interaction.followup.send(f'Failed: member with user_id {user_id} not found.', ephemeral=True)
 		elif handle is None:
-			await ctx.send(f'Failed: you must give the player\'s main handle.')
+			await interaction.followup.send(f'Failed: you must give the player\'s main handle.', ephemeral=True)
 		else:
 			async with handles.semaphore():
 				report = await players.create_player(member_to_fake_join, handle)
 				if report is None:
 					report = "Done."
-			await ctx.send(report)
+			await interaction.followup.send(report, ephemeral=True)
 
-	@commands.command(
+	@app_commands.command(
 		name='fake_join_name',
-		help='Admin-only. Initialise a user as a player (based on discord name).',
-		hidden=True)
-	@commands.has_role('gm')
-	async def fake_join_name_command(self, ctx, name : str, handle : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
-		members = await ctx.guild.fetch_members(limit=100).flatten()
-		member_to_fake_join = discord.utils.find(lambda m: m.name == name, members)
+		description='Admin-only. Initialise a user as a player (based on discord name).')
+	@app_commands.checks.has_role('gm')
+	async def fake_join_name_command(self, interaction: Interaction, name: str, handle: str):
+		await interaction.response.defer(ephemeral=True)
+		member_to_fake_join = None
+		async for member in interaction.guild.fetch_members(limit=100):
+			if member.name == name:
+				member_to_fake_join = member
+				break
 		if member_to_fake_join is None:
-			await ctx.send(f'Failed: member with name {name} not found.')
+			await interaction.followup.send(f'Failed: member with name {name} not found.', ephemeral=True)
 		elif handle is None:
-			await ctx.send(f'Failed: you must give the player\'s main handle.')
+			await interaction.followup.send(f'Failed: you must give the player\'s main handle.', ephemeral=True)
 		else:
 			async with handles.semaphore():
 				report = await players.create_player(member_to_fake_join, handle)
 				if report is None:
 					report = "Done."
-			await ctx.send(report)
+			await interaction.followup.send(report, ephemeral=True)
 
-	@commands.command(
+	@app_commands.command(
 		name='fake_join_nick',
-		help='Admin-only. Initialise a user as a player (based on server nick).',
-		hidden=True)
-	@commands.has_role('gm')
-	async def fake_join_nick_command(self, ctx, nick : str, handle : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
+		description='Admin-only. Initialise a user as a player (based on server nick).')
+	@app_commands.checks.has_role('gm')
+	async def fake_join_nick_command(self, interaction: Interaction, nick: str, handle: str):
+		await interaction.response.defer(ephemeral=True)
 		member_to_fake_join = await server.get_member_from_nick(nick)
 		if member_to_fake_join is None:
-			await ctx.send(f'Failed: member with nick {nick} not found.')
+			await interaction.followup.send(f'Failed: member with nick {nick} not found.', ephemeral=True)
 		elif handle is None:
-			await ctx.send(f'Failed: you must give the player\'s main handle.')
+			await interaction.followup.send(f'Failed: you must give the player\'s main handle.', ephemeral=True)
 		else:
 			async with handles.semaphore():
 				report = await players.create_player(member_to_fake_join, handle)
 				if report is None:
 					report = "Done."
-			await ctx.send(report)
+			await interaction.followup.send(report, ephemeral=True)
 
 	# This command ONLY works in the landing page channel.
 	# Note: no other commands work in the landing page channel!
 	# TODO: semaphore for joining
-	@commands.command(
+	@app_commands.command(
 		name='join',
-		help='Claim a handle and join the game. Only for players who have not yet joined.',
-		hidden=True)
-	async def join_command(self, ctx, handle : str=None):
-		allowed = await channels.pre_process_command(ctx, allow_cmd_line=False, allow_landing_page=True)
-		if not allowed:
-			return
-		member = await ctx.guild.fetch_member(ctx.message.author.id)
+		description='Claim a handle and join the game. Only for players who have not yet joined.')
+	@app_commands.checks.has_role(common.new_player_role_name)
+	async def join_command(self, interaction: Interaction, handle: str):
+		await interaction.response.defer(ephemeral=True)
+		member = await interaction.guild.fetch_member(interaction.user.id)
 		if member is None:
-			await self.send_response_in_landing_page(ctx, 'Failed: member not found.')
+			await interaction.followup.send('Failed: member not found.', ephemeral=True)
 		elif handle is None or handle == 'handle' or handle == '<handle>':
-			await self.send_response_in_landing_page(ctx, '```You must say which handle is yours! Example: \".join shadow_weaver\"```')
+			await interaction.followup.send('You must say which handle is yours! Example: \"/join shadow_weaver\"', ephemeral=True)
 		else:
 			async with handles.semaphore():
 				# TODO give player some sort of warning about using lower-case only
 				handle_id = handle.lower()
 				report = await players.create_player(member, handle_id)
 			if report is not None:
-				await self.send_response_in_landing_page(ctx, f'```Failed: invalid starting handle \"{handle_id}\" (or handle is already taken).```')
+				await interaction.followup.send(f'Failed: invalid starting handle \"{handle_id}\" (or handle is already taken).', ephemeral=True)
 			else:
-				await server.swallow(ctx.message, alert=False)
+				await interaction.followup.send('Success! Now have a look at all your new channels 🥳', ephemeral=True)
 
-	async def send_response_in_landing_page(self, ctx, response : str):
-		if response is not None:
-			await ctx.send(response, delete_after=10)
-		await server.swallow(ctx.message, alert=False);
-
-	@commands.command(
+	@app_commands.command(
 		name='clear_all_players',
-		help='Admin-only. De-initialise all players.',
-		hidden=True)
-	@commands.has_role('gm')
-	async def clear_all_players_command(self, ctx):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
+		description='Admin-only. De-initialise all players.')
+	@app_commands.checks.has_role('gm')
+	async def clear_all_players_command(self, interaction: Interaction):
+		await interaction.response.defer(ephemeral=True)
 		await players.init(clear_all=True)
 		try:
-			await ctx.send('Done.')
+			await interaction.followup.send('Done.', ephemeral=True)
 		except discord.errors.NotFound:
 			print('Cleared all players. Could not send report because channel is missing – '
 				+'the command was probably given in a player-only command line that was deleted.')
 
-	@commands.command(
+	@app_commands.command(
 		name='clear_all_actors',
-		help='Admin-only: de-initialise all actors (players and shops).',
-		hidden=True)
-	@commands.has_role('gm')
-	async def clear_all_actors_command(self, ctx):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
+		description='Admin-only: de-initialise all actors (players and shops).')
+	@app_commands.checks.has_role('gm')
+	async def clear_all_actors_command(self, interaction: Interaction):
+		await interaction.response.defer(ephemeral=True)
 		await actors.init(clear_all=True)
 		try:
-			await ctx.send('Done.')
+			await interaction.followup.send('Done.', ephemeral=True)
 		except discord.errors.NotFound:
 			print('Cleared all actors. Could not send report because channel is missing – '
 				+'the command was probably given in a player-only command line that was deleted.')
 
-	@commands.command(
+	@app_commands.command(
 		name='clear_actor',
-		help='Admin-only: de-initialise an actor (player or shop).',
-		hidden=True)
-	@commands.has_role('gm')
-	async def clear_actor_command(self, ctx, actor_id : str):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
+		description='Admin-only: de-initialise an actor (player or shop).')
+	@app_commands.checks.has_role('gm')
+	async def clear_actor_command(self, interaction: Interaction, actor_id: str):
+		await interaction.response.defer(ephemeral=True)
 		report = await actors.clear_actor(actor_id)
 		try:
-			await ctx.send(report)
+			await interaction.followup.send(report, ephemeral=True)
 		except discord.errors.NotFound:
 			print(f'Cleared actor {actor_id}. Could not send report because channel is missing – '
 				+'the command was probably given in a player-only command line that was deleted.')
 	
-	@commands.command(
+	@app_commands.command(
 		name='ping',
-		help='Admin-only. Send a ping to a player\'s cmd_line channel.',
-		hidden=True)
-	@commands.has_role('gm')
-	async def ping_command(self, ctx, player_id : str):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
+		description='Admin-only. Send a ping to a player\'s cmd_line channel.')
+	@app_commands.checks.has_role('gm')
+	async def ping_command(self, interaction: Interaction, player_id : str):
+		await interaction.response.defer(ephemeral=True)
 		channel = players.get_cmd_line_channel(player_id)
 		if channel is not None:
 			await channel.send(f'Testing ping for {player_id}')
+			await interaction.followup.send('OK', ephemeral=True)
 		else:
-			await ctx.send(f'Error: could not find the command line channel for {player_id}')
+			await interaction.followup.send(f'Error: could not find the command line channel for {player_id}', ephemeral=True)
 
-	@commands.command(
+	@app_commands.command(
 		name='add_member',
-		help='Admin-only. Add a member to a group.',
-		hidden=True)
-	@commands.has_role('gm')
-	async def add_member_command(self, ctx, handle_id : str=None, group_id : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
-		report = await groups.add_member_from_handle(ctx.guild, group_id, handle_id)
+		description='Admin-only. Add a member to a group.')
+	@app_commands.checks.has_role('gm')
+	async def add_member_command(self, interaction: Interaction, handle_id: str, group_id: str):
+		await interaction.response.defer(ephemeral=True)
+		report = await groups.add_member_from_handle(interaction.guild, group_id, handle_id)
 		if report is not None:
-			await ctx.send(report)
+			await interaction.followup.send(report, ephemeral=True)
+		else:
+			await interaction.followup.send('Failed to add member from handle', ephemeral=True)
 
-	@commands.command(
+	@app_commands.command(
 		name='create_group',
-		help='Admin-only. Create a group with yourself as initial member.',
-		hidden=True)
-	@commands.has_role('gm')
-	async def create_group_command(self, ctx, group_name : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
-		report = await groups.create_group_from_command(ctx, group_name)
+		description='Admin-only. Create a group with yourself as initial member.')
+	@app_commands.checks.has_role('gm')
+	async def create_group_command(self, interaction: Interaction, group_name: str):
+		await interaction.response.defer(ephemeral=True)
+		report = await groups.create_group_from_command(interaction.user.id, group_name)
 		if report is not None:
-			await ctx.send(report)
+			await interaction.followup.send(report, ephemeral=True)
 
-	@commands.command(
+	@app_commands.command(
 		name='clear_all_groups',
-		help='Admin-only. Delete all groups.',
-		hidden=True)
-	@commands.has_role('gm')
-	async def clear_all_groups_command(self, ctx):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
+		description='Admin-only. Delete all groups.')
+	@app_commands.checks.has_role('gm')
+	async def clear_all_groups_command(self, interaction: Interaction):
+		await interaction.response.defer(ephemeral=True)
 		await groups.init(clear_all=True)
-		await ctx.send('Done.')
+		await interaction.followup.send('Done.', ephemeral=True)
 
 
 
-def setup(bot):
-	bot.add_cog(AdminCog(bot))
+async def setup(bot):
+	await bot.add_cog(AdminCog(bot))

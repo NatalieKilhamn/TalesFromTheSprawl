@@ -12,6 +12,7 @@ from typing import Dict, List, Tuple
 from copy import deepcopy
 from enum import Enum
 from discord.ext import commands
+from discord import app_commands, Interaction
 from dotenv import load_dotenv
 
 # Custom imports
@@ -47,82 +48,65 @@ class ShoppingCog(commands.Cog, name='shopping'):
 	# Commands related to ordering
 	# These only work in cmd_line channels
 
-	@commands.command(
+	@app_commands.command(
 		name='order',
-		brief='Order a product from a shop.',
-		help=(
-			'Order a product from a shop. Tip: if the shop has published their menu, it is much easier to order ' +
-			f'from their storefront channel, which is found under the category {common.shops_category_name}'
-			)
+		description='Order a product from a shop. Tip: it is much easier to order from their storefront channel'
 		)
-	async def order_command(self, ctx, product_name : str=None, shop_name : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
-		report = await order_product_from_command(str(ctx.message.author.id), shop_name, product_name)
-		if report is not None:
-			await ctx.send(report)
+	async def order_command(self, interaction: discord.Interaction, product_name: str, shop_name: str='trinity_taskbar'):
+		await interaction.response.defer(ephemeral=True)
+		report = await order_product_from_command(str(interaction.user.id), shop_name, product_name)
+		if report is None:
+			report = 'Unknown error. Contact system admin.'
+		await interaction.followup.send(report, ephemeral=True)
 
-	@commands.command(
+	@app_commands.command(
 		name='order_other',
-		help='Admin-only. Order a product from a shop for someone else.',
-		hidden=True)
-	@commands.has_role('gm')
-	async def order_other_command(self, ctx, product_name : str=None, shop_name : str=None, buyer : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
-
+		description='Admin-only. Order a product from a shop for someone else.')
+	@app_commands.checks.has_role('gm')
+	async def order_other_command(self, interaction: Interaction, buyer: str, product_name: str, shop_name: str='trinity_taskbar'):
+		await interaction.response.defer(ephemeral=True)
 		buyer_handle : Handle = handles.get_handle(buyer)
 		report = await order_product_for_buyer(shop_name, product_name, buyer_handle)
-		if report is not None:
-			await ctx.send(report)
+		if report is None:
+			report = 'Unknown error. Contact system admin'
+		await interaction.followup.send(report, ephemeral=True)
 
-	@commands.command(
+"""
+	@app_commands.command(
 		name='set_delivery_id',
-		brief='Set your delivery option at a shop.',
-		help=(
-			'Set your delivery option at a shop. ' +
-			'This can be e.g. your table number, your delivery address, or your alias. ' +
-			'If several items are ordered for the same delivery option (e.g. to the same ' +
-			'table or same address) around the same time, they will likely be together.'
-			)
+		description='Set your delivery option at a shop. E.g. your table number, your delivery address, or your alias.',
+#		help=(
+#			'Set your delivery option at a shop. ' +
+#			'This can be e.g. your table number, your delivery address, or your alias. ' +
+#			'If several items are ordered for the same delivery option (e.g. to the same ' +
+#			'table or same address) around the same time, they will likely be together.'
+#			)
 		)
-	async def set_delivery_id_command(self, ctx, delivery_id : str=None, shop_name : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
-		report = set_delivery_id_from_command(str(ctx.message.author.id), delivery_id, shop_name)
-		if report is not None:
-			await ctx.send(report)
+	async def set_delivery_id_command(self, interaction: Interaction, delivery_id: str, shop_name: str='trinity_taskbar'):
+		await interaction.response.defer(ephemeral=True)
+		report = set_delivery_id_from_command(str(interaction.user.id), delivery_id, shop_name)
+		if report is None:
+			report = 'Unknown error. Contact system admin'
+		await interaction.followup.send(report, ephemeral=True)
+"""
 
-	@commands.command(
+"""	@app_commands.command(
 		name='table',
-		brief=f'Tell {main_shop} where to bring your order.',
-		help=(f'Tell {main_shop} where to bring your order. ' +
-			'Valid options are table numbers, \"bar\", and \"call\" (call out your handle).\n' +
-			f'Note: \'.table 5\" is the same as typing \'.set_delivery_id {main_shop}\"Table 5\"\'.'
-			)
+		description=f'Tell {main_shop} where to bring your order. Valid options are table numbers, \"bar\", and \"call\".'
 		)
-	async def set_delivery_id_command_table(self, ctx, option : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
-		report = set_delivery_table_from_command(str(ctx.message.author.id), option, main_shop)
-		if report is not None:
-			await ctx.send(report)
+	async def set_delivery_id_command_table(self, interaction: Interaction, option: str):
+		report = set_delivery_table_from_command(str(interaction.user.id), option, main_shop)
+		if report is None:
+			report = 'Unknown error. Contact system admin'
+		await interaction.followup.send(report, ephemeral=True)
 
-	@commands.command(
-		name='clear_all_shops',
-		help='Admin-only: delete all shops.',
-		hidden=True)
-	@commands.has_role('gm')
-	async def clear_shops_command(self, ctx):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
+	@app_commands.command(name='clear_all_shops', description='Admin-only: Delete all shops.')
+	@app_commands.checks.has_role('gm')
+	async def clear_shops_command(self, interaction: Interaction):
+		await interaction.response.defer(ephemeral=True)
 		await init(clear_all=True)
-		await ctx.send('Done.')
+		await interaction.followup.send('Done.', ephemeral=True)
+"""
 
 
 
@@ -137,216 +121,195 @@ class EmployeeCog(commands.Cog, name='employee'):
 	# Commands related to managing a shop
 	# These only work in cmd_line channels
 
-	@commands.command(
+	@app_commands.command(
 		name='create_shop',
-		help='Admin-only: create a new shop, run by a certain player.',
-		hidden=True)
-	@commands.has_role('gm')
-	async def create_shop_command(self, ctx, shop_name : str=None, player_id : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
+		description='Admin-only: create a new shop, run by a certain player.')
+	@app_commands.checks.has_role('gm')
+	async def create_shop_command(self, interaction: Interaction, shop_name: str, player_id: str):
+		await interaction.response.defer(ephemeral=True)
 		async with handles.semaphore():
 			result : ActionResult = await create_shop(shop_name, player_id, is_owner=True)
-			if result.report is not None:
-				await ctx.send(result.report)
+			if result.report is None:
+				report = result.report
+			else:
+				report = 'Unknown error. Contact system admin.'
+		await interaction.followup.send(report, ephemeral=True)
 
 
-	@commands.command(
-		name='employ',
-		brief='Add a new employee to your shop.',
-		help=(
-			'Add a new employee to your shop.\n' +
-			'Note: as long as you don\'t work at more than one shop, you can skip the \"shop_name\" argument.'
-			)
-		)
-	async def employ_command(self, ctx, handle_id : str=None, shop_name : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
-		report = await process_employ_command(str(ctx.message.author.id), handle_id, shop_name)
-		if report is not None:
-			await ctx.send(report)
+	@app_commands.command(name='employ', description='Add a new employee to your shop.')
+	async def employ_command(self, interaction: Interaction, handle_id: str, shop_name: str=None):
+		await interaction.response.defer(ephemeral=True)
+		report = await process_employ_command(str(interaction.user.id), handle_id, shop_name)
+		if report is None:
+			report = 'Unknown error. Contact system admin.'
+		await interaction.followup.send(report, ephemeral=True)
 
-	@commands.command(
-		name='fire',
-		brief='Shop owner only: remove an employee from your shop.',
-		help=(
-			'Shop owner only: remove an employee from your shop.\n' +
-			'Note: as long as you don\'t work at more than one shop, you can skip the \"shop_name\" argument.'
-			)
-		)
-	async def fire_command(self, ctx, handle_id : str=None, shop_name : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
-		report = await process_fire_command(str(ctx.message.author.id), handle_id, shop_name)
-		if report is not None:
-			await ctx.send(report)
+	@app_commands.command(name='fire', description='Shop owner only: remove an employee from your shop.')
+	async def fire_command(self, interaction: Interaction, handle_id: str, shop_name: str=None):
+		await interaction.response.defer(ephemeral=True)
+		report = await process_fire_command(str(interaction.user.id), handle_id, shop_name)
+		if report is None:
+			report = 'Unknown error. Contact system admin.'
+		await interaction.followup.send(report, ephemeral=True)
 
 
-	@commands.command(
+	@app_commands.command(
 		name='add_product',
-		brief='Add a new product to the shop.',
-		help=(
-			'Add a new product to the shop.\n' +
-			'If you do not give a description, price or symbol, boring presets will be used but you can edit them afterwards.\n' +
-			'Note: as long as you don\'t work at more than one shop, you can skip the \"shop_name\" argument.'
-			)		
+		description='Add a new product to the shop.',
+#		help=(
+#			'Add a new product to the shop.\n' +
+#			'If you do not give a description, price or symbol, boring presets will be used but you can edit them afterwards.\n' +
+#			'Note: as long as you don\'t work at more than one shop, you can skip the \"shop_name\" argument.'
+#			)		
 		)
 	async def add_product_command(
 		self,
-		ctx,
-		product_name : str=None,
-		description : str=None,
-		price : int=0,
-		symbol : str=None,
-		shop_name : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
-		report = await add_product(str(ctx.message.author.id), product_name, description, price, symbol, shop_name)
-		if report is not None:
-			await ctx.send(report)
+		interaction: Interaction,
+		product_name: str,
+		description: str=None,
+		price: int=0,
+		symbol: str=None,
+		shop_name: str=None):
+		await interaction.response.defer(ephemeral=True)
+		report = await add_product(str(interaction.user.id), product_name, description, price, symbol, shop_name)
+		if report is None:
+			report = 'Unknown error. Contact system admin.'
+		await interaction.followup.send(report, ephemeral=True)
 
-	@commands.command(
+	@app_commands.command(
 		name='edit_product',
-		brief='Edit one of the shop\'s existing products.',
-		help=(
-			'Edit a product\'s properties. Examples:\n' +
-			'.edit_product beer description \"A refreshing soybeer\"\n' +
-			'.edit_product beer price 5\n' +
-			'.edit_product beer symbol beer [some named symbols are avaialable]\n' +
-			'.edit_product beer symbol 🥤 [any standard emoji can be used]\n' +
-			'.edit_product beer available true [\"true\", \"t\" and \"1\" are equivalent]\n' +
-			'.edit_product beer available false [\"false\", \"f\" and \"0\" are equivalent]\n' +
-			'.edit_product beer in_stock true\n' +
-			'\"available\" means the product will be visible in the shop. \"in_stock\" means it can be ordered.\n' +
-			'Note: after editing a product, you must run \".publish_menu\" before the changes are visible to customers.' +
-			'Note 2: as long as you don\'t work at more than one shop, you can skip the \"shop_name\" argument.'
-			)				
+		description='Edit one of the shop\'s existing products. Don\'t forget to re-publish menu after changes.',
+#		help=(
+#			'Edit a product\'s properties. Examples:\n' +
+#			'.edit_product beer description \"A refreshing soybeer\"\n' +
+#			'.edit_product beer price 5\n' +
+#			'.edit_product beer symbol beer [some named symbols are avaialable]\n' +
+#			'.edit_product beer symbol 🥤 [any standard emoji can be used]\n' +
+#			'.edit_product beer available true [\"true\", \"t\" and \"1\" are equivalent]\n' +
+#			'.edit_product beer available false [\"false\", \"f\" and \"0\" are equivalent]\n' +
+#			'.edit_product beer in_stock true\n' +
+#			'\"available\" means the product will be visible in the shop. \"in_stock\" means it can be ordered.\n' +
+#			'Note: after editing a product, you must run \".publish_menu\" before the changes are visible to customers.' +
+#			'Note 2: as long as you don\'t work at more than one shop, you can skip the \"shop_name\" argument.'
+#			)				
 		)
 	async def edit_product_command(
 		self,
-		ctx,
-		product_name : str=None,
-		key : str=None,
-		value : str=None,
-		shop_name : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
-		report = await edit_product_from_command(str(ctx.message.author.id), product_name, key, value, shop_name)
-		if report is not None:
-			await ctx.send(report)
+		interaction: Interaction,
+		product_name: str,
+		key: str=None,
+		value: str=None,
+		shop_name: str=None):
+		await interaction.response.defer(ephemeral=True)
+		report = await edit_product_from_command(str(interaction.user.id), product_name, key, value, shop_name)
+		if report is None:
+			report = 'Unknown error. Contact system admin.'
+		await interaction.followup.send(report, ephemeral=True)
 
-	@commands.command(
+	@app_commands.command(
 		name='remove_product',
-		brief='Delete a product from the shop.',
-		help=(
-			'Delete a product from the shop.\n' +
-			'After editing a product, you must run \".publish_menu\" before the changes are visible to customers.' +
-			'Note: as long as you don\'t work at more than one shop, you can skip the \"shop_name\" argument.'
-			)
+		description='Delete a product from the shop.',
+#		help=(
+#			'Delete a product from the shop.\n' +
+#			'After editing a product, you must run \".publish_menu\" before the changes are visible to customers.' +
+#			'Note: as long as you don\'t work at more than one shop, you can skip the \"shop_name\" argument.'
+#			)
 		)
 	async def remove_product_command(
 		self,
-		ctx,
-		product_name : str=None,
-		shop_name : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
-		report = await remove_product(str(ctx.message.author.id), product_name, shop_name)
-		if report is not None:
-			await ctx.send(report)
+		interaction: Interaction,
+		product_name: str,
+		shop_name: str=None):
+		await interaction.response.defer(ephemeral=True)
+		report = await remove_product(str(interaction.user.id), product_name, shop_name)
+		if report is None:
+			report = 'Unknown error. Contact system admin.'
+		await interaction.followup.send(report, ephemeral=True)
 
-	@commands.command(
+	@app_commands.command(
 		name='in_stock',
-		brief='Set a product to be in stock / out of stock.',
-		help=(
-			'Set a product to be in stock / out of stock. \".in_stock beer true\" is equivalent to \".edit_product beer in_stock true\".\n' +
-			'After editing a product, you must run \".publish_menu\" before the changes are visible to customers.' +
-			'Note: as long as you don\'t work at more than one shop, you can skip the \"shop_name\" argument.'
-			)
+		description='Set a product to be in stock / out of stock. Value can be either True or False',
+#		help=(
+#			'Set a product to be in stock / out of stock. \".in_stock beer true\" is equivalent to \".edit_product beer in_stock true\".\n' +
+#			'After editing a product, you must run \".publish_menu\" before the changes are visible to customers.' +
+#			'Note: as long as you don\'t work at more than one shop, you can skip the \"shop_name\" argument.'
+#			)
 		)
 	async def in_stock_command(
 		self,
-		ctx,
-		product_name : str=None,
-		value : bool=True, # TODO
-		shop_name : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
-		report = await edit_product_from_command(str(ctx.message.author.id), product_name, 'in_stock', str(value), shop_name)
-		if report is not None:
-			await ctx.send(report)
+		interaction: Interaction,
+		product_name: str,
+		value: bool=True,
+		shop_name: str=None):
+		await interaction.response.defer(ephemeral=True)
+		report = await edit_product_from_command(str(interaction.user.id), product_name, 'in_stock', str(value), shop_name)
+		if report is None:
+			report = 'Unknown error. Contact system admin.'
+		await interaction.followup.send(report, ephemeral=True)
 
 
-	@commands.command(
+	@app_commands.command(
 		name='publish_menu',
-		brief='Publish the current catalogue/menu.',
-		help=(
-			'Publish the current catalogue/menu. After editing a product, you must run this command for the updates to be visible to customers.\n' +
-			'Note: as long as you don\'t work at more than one shop, you can skip the \"shop_name\" argument.'
-			)
+		description='Publish the current catalogue/menu',
+#		help=(
+#			'Publish the current catalogue/menu. After editing a product, you must run this command for the updates to be visible to customers.\n' +
+#			'Note: as long as you don\'t work at more than one shop, you can skip the \"shop_name\" argument.'
+#			)
 		)
-	async def publish_menu_command(self, ctx, product_name : str=None, shop_name : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
+	async def publish_menu_command(self, interaction: Interaction, product_name: str=None, shop_name: str=None):
+		await interaction.response.defer(ephemeral=True)
+		report = await self.publish_menu(interaction.user.id, product_name, shop_name)
+		await interaction.followup.send(report, ephemeral=True)
+
+	@app_commands.command(name='pm', description='Publish the current catalogue/menu. Alias for /publish_menu.')
+	async def pm_command(self, interaction: Interaction, product_name: str=None, shop_name: str=None):
+		await interaction.response.defer(ephemeral=True)
+		report = await self.publish_menu(interaction.user.id, product_name, shop_name)
+		await interaction.followup.send(report, ephemeral=True)
+		
+	async def publish_menu(self, user_id: int, product_name: str=None, shop_name: str=None):
 		if product_name is not None:
-			report = await post_catalogue_item(str(ctx.message.author.id), product_name, shop_name)
+			report = await post_catalogue_item(str(user_id), product_name, shop_name)
 		else:
-			report = await update_storefront(str(ctx.message.author.id), shop_name)
-		if report is not None:
-			await ctx.send(report)
+			report = await update_storefront(str(user_id), shop_name)
+		if report is None:
+			report = 'Command finished without any output.'
+		return report
 
-	@commands.command(
-		name='pm',
-		help='Publish the current catalogue/menu. Alias for .publish_menu.',
-		hidden=True
-		)
-	async def pm_command(self, ctx, product_name : str=None, shop_name : str=None):
-		await self.publish_menu_command(ctx, product_name, shop_name)
-
-	@commands.command(
+	@app_commands.command(
 		name='clear_orders',
-		brief='Shop owner only: clear your shop\'s orders.',
-		help=(
-			'Remove all orders (both fulfilled and pending), and publish all product updates to the menu.\n' +
-			'Note: all orders that are pre-paid will still be paid, and there will be no easy way to refund them!\n' +
-			'Note 2: as long as you don\'t work at more than one shop, you can skip the \"shop_name\" argument.'
-			)
+		description='Shop owner only: clear your shop\'s orders.',
+#		help=(
+#			'Remove all orders (both fulfilled and pending), and publish all product updates to the menu.\n' +
+#			'Note: all orders that are pre-paid will still be paid, and there will be no easy way to refund them!\n' +
+#			'Note 2: as long as you don\'t work at more than one shop, you can skip the \"shop_name\" argument.'
+#			)
 		)
-	async def clear_orders_command(self, ctx, shop_name : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
-		await reinitialize(str(ctx.message.author.id), shop_name)
-		await self.publish_menu_command(ctx, shop_name=shop_name)
+	async def clear_orders_command(self, interaction: Interaction, shop_name : str=None):
+		await interaction.response.defer(ephemeral=True)
+		await reinitialize(str(interaction.user.id), shop_name)
+		report = await self.publish_menu(interaction.user.id, shop_name=shop_name)
+		await interaction.followup.send(report, ephemeral=True)
 
-	@commands.command(
+	@app_commands.command(
 		name='set_tips',
-		brief='Set which handle should get your tips.',
-		help=(
-			'Set the handle that is shown in the storefront and gets your tips.\n' +
-			'If you just do \".set_tips\" without any handle, you will not be shown in the storefront at all.\n' +
-			'Note: as long as you don\'t work at more than one shop, you can skip the \"shop_name\" argument.'
-			)
+		description='Set which handle should get your tips. If no handle is given you will not be shown at all.',
+#		help=(
+#			'Set the handle that is shown in the storefront and gets your tips.\n' +
+#			'If you just do \".set_tips\" without any handle, you will not be shown in the storefront at all.\n' +
+#			'Note: as long as you don\'t work at more than one shop, you can skip the \"shop_name\" argument.'
+#			)
 		)
-	async def set_tips_command(self, ctx, handle_id : str=None, shop_name : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
-		report = await set_tips_for_user(str(ctx.message.author.id), handle_id, shop_name)
-		if report is not None:
-			await ctx.send(report)
+	async def set_tips_command(self, interaction: Interaction, handle_id: str=None, shop_name: str=None):
+		await interaction.response.defer(ephemeral=True)
+		report = await set_tips_for_user(str(interaction.user.id), handle_id, shop_name)
+		if report is None:
+			report = 'Unknown error. Contact system admin'
+		await interaction.followup.send(report, ephemeral=True)
 
-def setup(bot):
-	bot.add_cog(ShoppingCog(bot))
-	bot.add_cog(EmployeeCog(bot))
+async def setup(bot):
+	await bot.add_cog(ShoppingCog(bot))
+	await bot.add_cog(EmployeeCog(bot))
 
 
 
@@ -1285,14 +1248,14 @@ async def process_employ_command(user_id : str, handle_id : str, shop_name : str
 			await channel.send(
 				f'Congratulations **{handle.handle_id}**—you have been added as an employee at **{shop.name}**! You now have access to its finances, chat, and order channels.\n'
 				+ f'You can add products to the menu/catalogue:\n'
-				+ f'> .add_product Beer "A description of the beer!" 10 :beer:\n'
+				+ f'> /add_product Beer "A description of the beer!" 10 :beer:\n'
 				+ f'  (\"10\" is the cost in {coin})\n'
 				+ f'You can edit products,:\n'
-				+ f'> .edit_product Beer price 5\n'
+				+ f'> /edit_product Beer price 5\n'
 				+ f'  The following fields can be edited: description, price, symbol, available, in_stock.\n'
 				+ f'  \"available\" and \"in_stock\" can be set to \"0\" or \"1\". Available means the product is shown in the storefront channel; in_stock means it can be ordered.\n'
 				+ f'To make your added/edited products appear in the public storefront channel:\n'
-				+ f'> .publish_menu')
+				+ f'> /publish_menu')
 	return result.report
 
 async def remove_employee(shop : Shop, player_id : str, handle_id : str=None):
@@ -1391,7 +1354,7 @@ async def add_product(user_id : str, product_name : str, description : str, pric
 	shop : Shop = result.shop
 
 	if product_name is None:
-		return f'Error: must give a product name; use \".add_product <product_name> [Optional: description, price, type/symbol]\"'
+		return f'Error: must give a product name; use \"/add_product <product_name> [Optional: description, price, type/symbol]\"'
 	if product_exists(shop.shop_id, product_name):
 		existing_product = read_product(shop.shop_id, product_name)
 		if existing_product.name == product_name:
@@ -1419,7 +1382,7 @@ async def remove_product(user_id : str, product_name : str, shop_name : str):
 	shop : Shop = result.shop
 
 	if product_name is None:
-		return f'Error: must give a product name; use \".remove_product <product_name>\"'
+		return f'Error: must give a product name; use \"/remove_product <product_name>\"'
 	if not product_exists(shop.shop_id, product_name):
 		return f'Error: shop {shop.shop_id} has no product called {product_name}.'
 
@@ -1447,12 +1410,12 @@ async def edit_product_from_command(user_id : str, product_name : str, key : str
 
 def edit_product(shop : Shop, product_name : str, key : str, value : str):
 	if product_name is None:
-		return f'Error: must give a product name; use \".add_product {shop.shop_id} <product_name>. (Optional: add description, price, and type/symbol)\"'
+		return f'Error: must give a product name; use \"/add_product {shop.shop_id} <product_name>. (Optional: add description, price, and type/symbol)\"'
 	product = read_product(shop.shop_id, product_name)
 	if product is None:
 		return f'Error: no product called \"{product_name}\" at {shop.name}.'
 	if key is None:
-		return f'Error: must give the property to edit. usage: \".edit_product {shop.shop_id} {product_name} <property> <value>\"'
+		return f'Error: must give the property to edit. usage: \"/edit_product {shop.shop_id} {product_name} <property> <value>\"'
 
 	key = key.lower()
 	if key in ['available', 'in_stock'] and value is None:
@@ -1525,7 +1488,17 @@ async def _update_storefront_channel(shop: Shop, channel):
 bar_emoji = '🍸'
 call_emoji = '📣'
 
+
 async def update_storefront_delivery_choice_message(shop : Shop, channel):
+	tipping_message = get_tipping_message(shop.shop_id, channel.guild.id)
+	if not tipping_message:
+		await channel.purge()
+		await channel.send(
+			f'{common.hard_space}\n' +
+			'Use the buttons below to order! If you make a mistake, you can cancel the order from your **finance** channel (if you\'re fast enough).\n' +
+			f'{common.hard_space}')
+
+async def update_storefront_delivery_choice_message_old(shop : Shop, channel):
 	# TODO: track whether this shop is actually a restaurant, and otherwise edit this message
 	content = (
 		f'Please select your table using the buttons:\n' +
@@ -1554,7 +1527,7 @@ async def update_storefront_delivery_choice_message(shop : Shop, channel):
 			'Use the buttons below to order! If you make a mistake, you can cancel the order from your **finance** channel (if you\'re fast enough).\n' +
 			f'{common.hard_space}')
 	if message is None:
-		raise RuntimeError(f'Error: failed to find the delivery choice message in storefront, dump: {shop.to_string()}')
+		raise RuntimeError(f'Failed to find the delivery choice message in storefront, dump: {shop.to_string()}')
 	else:
 		await add_delivery_choice_reactions(message, max_table_number)
 		store_delivery_choice_message(shop.shop_id, str(message.id), channel.guild.id)
@@ -1625,7 +1598,7 @@ async def update_catalogue_item_message(shop : Shop, channel, product : Product)
 		store_storefront_msg_mapping(shop.shop_id, str(message.id), action)
 		store_product(shop.shop_id, product)
 	else:
-		raise RuntimeError(f'Error: failed to publish product, dump: {product.to_string()}')
+		raise RuntimeError(f'Failed to publish product, dump: {product.to_string()}')
 
 
 def generate_catalogue_item_message(product):
@@ -1820,9 +1793,9 @@ async def order_product_for_buyer(shop_name : str, product_name : str, buyer_han
 	if product is None:
 		print(f'Trying to order {product_name} from {shop_name}, found none')
 		if product_name is None:
-			return f'Error: no product name given. Use \".order <product_name> <shop_name>\"'
+			return f'Error: no product name given. Use /order <product_name> <shop_name>\"'
 		elif shop_name is None:
-			return f'Error: no shop name given. Use \".order {product_name} <shop_name>\"'
+			return f'Error: no shop name given. Use \"/order {product_name} <shop_name>\"'
 	else:
 		print(f'Trying to order {product_name} from {shop_name}, found {product.to_string()}')
 

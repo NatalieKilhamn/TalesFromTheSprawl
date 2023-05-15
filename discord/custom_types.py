@@ -156,17 +156,19 @@ class PlayerData(object):
 	def __init__(
 		self,
 		player_id : str,
+		category_index: int,
 		cmd_line_channel_id : int,
 		shops : List[str] = None,
 		groups : List[str] = None):
 		self.player_id = player_id
+		self.category_index = category_index
 		self.cmd_line_channel_id = cmd_line_channel_id
 		self.shops = [] if shops is None else shops
 		self.groups = [] if groups is None else groups
 
 	@staticmethod
 	def from_string(string : str):
-		obj = PlayerData(None, 0)
+		obj = PlayerData(None, 0, 0)
 		obj.__dict__.update(simplejson.loads(string))
 		return obj
 

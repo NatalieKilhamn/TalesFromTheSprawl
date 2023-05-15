@@ -1,0 +1,49 @@
+{
+    "mojito": {
+        "codes": {
+            "default": "mojito.data"
+        }
+    },
+    "anwiz": {
+        "codes": {
+            "default": "anwiz.data"
+        }
+    },
+    "toaster": {
+        "codes": {
+            "default": "toaster.data"
+        },
+        "announcement_message": "SOMEONE CALLED UPON THE TOASTER"
+    },
+    "suns_hap_ff": {
+        "codes": {
+            "default": "suns_hap_ff.data"
+        },
+        "announcement_message": "Gruppen anzen_wicklocks borde få repo på intrång på sune. Handles max och harry"
+    },
+    "darlinda4ever": {
+        "codes": {
+            "default": "darlinda4ever.data"
+        }
+    },
+    "SK7760417322": {
+        "codes": {
+            "default": "SK7760417322.data"
+        }
+    },
+    "skhd2345868": {
+        "codes": {
+            "default": "skhd2345868.data"
+        }
+    },
+    "tripower": {
+        "codes": {
+            "default": "tripower.data"
+        }
+    },
+    "optic_chip": {
+        "codes": {
+            "default": "optic_chip.data"
+        }
+    }
+}

@@ -165,7 +165,8 @@ def get_all_group_ids():
 
 def any_groups():
 	groups = ConfigObj(groups_file_name)
-	return next(iter(groups), highest_ever_index) != highest_ever_index
+	weird_default_val = "the_spanish_inquisition"  # No way to get false positives. Python don't expect THE SPANISH INQUISITION.
+	return next(iter(groups), weird_default_val) != weird_default_val
 
 
 def get_main_channel(guild, group_name : str):
@@ -181,11 +182,11 @@ def get_main_channel(guild, group_name : str):
 
 # Create group
 
-async def create_group_from_command(ctx, group_name : str):
+async def create_group_from_command(user_id: int, group_name : str):
 	if group_name is None:
 		return f'Error: must give a group name.'
 
-	player_id = players.get_player_id(str(ctx.message.author.id))
+	player_id = players.get_player_id(str(user_id))
 	if player_id is not None:
 		members = [player_id]
 		members_report = f' The first member is {player_id}'
@@ -234,7 +235,7 @@ async def create_new_group(group_name : str, initial_members : List[str] = None,
 
 async def add_member_from_handle(guild, group_id : str, handle_id : str):
 	if handle_id is None:
-		return f'Error: you must give a handle ID and group name. Use \".add_member <handle> <group>\"'
+		return f'Error: you must give a handle ID and group name. Use \"/add_member <handle> <group>\"'
 	handle : Handle = handles.get_handle(handle_id)
 	if handle.handle_type == HandleTypes.Unused:
 		return f'Error: handle {handle_id} does not exist.'
@@ -242,7 +243,7 @@ async def add_member_from_handle(guild, group_id : str, handle_id : str):
 	if member is None:
 		return f'Error: actor {handle.actor_id} is not a player, or does not follow the server nick scheme.'
 	if group_id is None:
-		return f'Error: you must give a group name. Use \".add_member {handle_id} <group>\"'
+		return f'Error: you must give a group name. Use \"/add_member {handle_id} <group>\"'
 	group : Group = Group.read(group_id)
 	if group is None:
 		return f'Error: could not find group {group_id}.'

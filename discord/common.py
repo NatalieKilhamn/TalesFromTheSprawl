@@ -48,7 +48,7 @@ def letter_emoji(letter : str):
 # Channels
 shops_category_name = 'public_business'
 off_category_name = 'offline'
-public_open_category_name = 'public_network'
+public_open_category_name = 'Local network'
 shadowlands_category_name = 'shadowlands'
 groups_category_name = 'private_networks'
 announcements_category_name = 'announcements'
@@ -57,7 +57,7 @@ setup_category_name = 'setup'
 testing_category_name = 'testing'
 personal_category_base = 'personal_account_'
 chats_category_base = 'chats_'
-num_per_player_category_groups = 7 # 6 for regular players, one for non-player entities
+num_per_player_category_groups = 12 # 11 for regular players, one for non-player entities
 
 
 base_categories = [
@@ -65,9 +65,9 @@ base_categories = [
 	(setup_category_name, ["landing_page"]),
 	(announcements_category_name, [gm_announcements_name]),
 	(testing_category_name, ["cmd_line_gm", "off_intrig"]),
-	(public_open_category_name, ["open_channel", "marketplace", "news_seattle", "politics", "gossips_and_pics", "vents_and_rants", "you_are_drunk", "anon"]),
+	(shadowlands_category_name, ["seattle_news", "open_channel", "anon"]),
+	(public_open_category_name, ["marketplace", "you_are_drunk"]),
 	(shops_category_name, []),
-	(shadowlands_category_name, []),
 	(groups_category_name, [])
 ]
 

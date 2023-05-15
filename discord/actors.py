@@ -68,7 +68,7 @@ async def delete_all_actor_roles(spare_used : bool):
 
 async def delete_if_actor_role(role, spare_used : bool):
 	if await is_actor_role(role.name):
-		in_use = actor_index_in_use(role.name) or len(role.members) > 0
+		in_use = actor_index_in_use(role.name) or len(role.members) > 0 or True		# TODO: Temporary fix
 		if not in_use or not spare_used:
 			await role.delete()
 
@@ -235,7 +235,7 @@ async def send_startup_message_chat_hub(channel, actor_id : str, is_gm : bool):
 		content += 'Remember: all of the GMs can see and respond to all these chats! Communicate with each other to avoid chaos!'
 	else:
 		content = f'This is the chat hub for {actor_id}. '
-		content += 'You can start new chats by typing \"**.chat** *handle*\", for example \".chat gm\".\n' # or [NOT IMPLEMENTED YET] \".room <room_name>\".'
+		content += 'You can start new chats by typing \"**/chat** *handle*\", for example \"/chat gm\".\n' # or [NOT IMPLEMENTED YET] \".room <room_name>\".'
 		content += f'Once you have started a chat, you will see it below, and you can close and re-open it by clicking the {emoji_cancel} and {emoji_open} below the message.\n '
 	await channel.send(content)
 
@@ -337,7 +337,7 @@ async def lock_tentative_transaction(actor_id : str, msg_id : str):
 	delete_transaction(actor_id, msg_id)
 	channel = get_finance_channel(actor_id)
 	if channel is None:
-		raise RuntimeError(f'Error: trying to edit financial record but could not find the channel for {actor_id}.')
+		raise RuntimeError(f'Trying to edit financial record but could not find the channel for {actor_id}.')
 	try:
 		message = await channel.fetch_message(int(msg_id))
 		await message.clear_reactions()

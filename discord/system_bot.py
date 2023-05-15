@@ -24,13 +24,12 @@ import artifacts
 import gm
 import logger
 
-
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 guild_name = os.getenv('GUILD_NAME')
 
-intents = discord.Intents.default()
-intents.members = True
+intents = discord.Intents.all()
+#intents.members = True
 
 logger.setup_command_logger()
 
@@ -47,11 +46,6 @@ bot = commands.Bot(
 # Below cogs represents our folder our cogs are in. Following is the file name. So 'meme.py' in cogs, would be cogs.meme
 # Think of it like a dot path import
 initial_extensions = ['handles', 'finances', 'admin', 'chats', 'shops', 'gm', 'artifacts']
-
-# Here we load our extensions(cogs) listed above in [initial_extensions].
-if __name__ == '__main__':
-    for extension in initial_extensions:
-        bot.load_extension(extension)
 
 async def _destroy_all():
     for guild in bot.guilds:
@@ -78,6 +72,11 @@ async def on_ready():
         print("Cleaned up all channels, categories and roles")
         await bot.close()
         return
+
+        
+    # Here we load our extensions(cogs) listed above in [initial_extensions].
+    await asyncio.gather(*(asyncio.create_task(bot.load_extension(extension)) for extension in initial_extensions))
+    await bot.tree.sync()
 
     # TODO: move some of the initialisation to the cogs instead
     await server.init(bot.guilds)
@@ -107,6 +106,28 @@ async def on_command_error(ctx, error):
     else:
         await ctx.send("Error: unknown system error. Contact administrator.")
         raise(error)
+
+@bot.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error):
+    print(f"Got error on command: {error}")
+    if isinstance(error, Exception):
+        import traceback
+        traceback.print_exc()
+
+    if isinstance(error, discord.app_commands.BotMissingPermissions):
+        await interaction.response.send_message(error, ephemeral=True)
+    elif isinstance(error, discord.app_commands.errors.MissingRole):
+        await interaction.response.send_message(f'You are not allowed to run this command.', ephemeral=True)
+    elif isinstance(error, discord.app_commands.errors.CommandInvokeError) and isinstance(error.__cause__, RuntimeError):
+        try:
+            await interaction.response.send_message(f'Error: {error.__cause__}', ephemeral=True)
+        except discord.errors.InteractionResponded:
+            await interaction.followup.send(f'Error: {error.__cause__}', ephemeral=True)
+    else:
+        try:
+            await interaction.response.send_message(f'Failed command. Contact system administrator.', ephemeral=True)
+        except discord.errors.InteractionResponded:
+            await interaction.followup.send(f'Failed command. Contact system administrator.', ephemeral=True)
 
 # General message processing (reposting for anonymity/pseudonymity)
 

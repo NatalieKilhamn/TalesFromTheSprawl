@@ -7,6 +7,7 @@ import server
 import handles
 
 from discord.ext import commands
+from discord import app_commands, Interaction
 from dotenv import load_dotenv
 import os
 
@@ -27,92 +28,66 @@ class GmCog(commands.Cog, name=gm_role_name):
 
 	# GM-only commands for setting up in-game content.
 
-	@commands.command(
+	@app_commands.command(
 		name='add_known_handle',
-		brief='GM-only. Add a player\'s handle.',
-		help=(
-			'Add a player\'s handle before they join the server. ' +
-			'When a player claims the given handle, their initial data ' +
-			'(aliases, money, groups etc) will be set up automatically.'
-			),
-		hidden=True
+		description='GM-only. Add a player\'s handle before they join the server.',
+#		help=(
+#			'Add a player\'s handle before they join the server. ' +
+#			'When a player claims the given handle, their initial data ' +
+#			'(aliases, money, groups etc) will be set up automatically.'
+#			),
 		)
-	@commands.has_role(gm_role_name)
-	async def add_known_handle_command(self, ctx, handle_id : str):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
+	@app_commands.checks.has_role(gm_role_name)
+	async def add_known_handle_command(self, interaction: Interaction, handle_id: str):
 		if handle_id is None:
-			await ctx.send('Error: provide a handle')
+			await interaction.response.send_message('Error: provide a handle', ephemeral=True)
 		else:
 			player_setup.add_known_handle(handle_id)
-			await ctx.send(f'Added entry for {handle_id}. Please update its contents manually by editing the file.')
+			await interaction.response.send_message(f'Added entry for {handle_id}. Please update its contents manually by editing the file.', ephemeral=True)
 
 
-
-	@commands.command(
-		name='run_scenario',
-		help='GM-only. Run a scenario.',
-		hidden=True)
-	@commands.has_role(gm_role_name)
-	async def run_scenario_command(self, ctx, name : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
+	@app_commands.command(name='run_scenario', description='GM-only. Run a scenario.')
+	@app_commands.checks.has_role(gm_role_name)
+	async def run_scenario_command(self, interaction: Interaction, name: str):
 		report = await scenarios.run_scenario(name)
-		if report is not None:
-			await ctx.send(report)
+		if report is None:
+			report = "Command finished without any output"
+		await interaction.response.send_message(report, ephemeral=True)
 
-	@commands.command(
-		name='create_scenario',
-		help='GM-only. Create a basic scenario.',
-		hidden=True)
-	@commands.has_role(gm_role_name)
-	async def create_scenario_command(self, ctx, name : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
+	@app_commands.command(name='create_scenario', description='GM-only. Create a basic scenario.')
+	@app_commands.checks.has_role(gm_role_name)
+	async def create_scenario_command(self, interaction: Interaction, name: str):
 		report = await scenarios.create_scenario(name)
-		if report is not None:
-			await ctx.send(report)
+		if report is None:
+			report = "Command ended without any output"
+		await interaction.response.send_message(report, ephemeral=True)
 
-	@commands.command(
-		name='create_artifact',
-		brief='GM-only. Create an artifact.',
-		help=(
-			'Create an artifact, which is any sort of digital content that players can access ' +
-			'using some sort of username/password setup. Examples include encrypted cloud storage ' +
-			'(where the player finds the user/pw) and physical devices that the player \"connects\" to ' +
-			'(by entering a device ID, \"port number\" or similar which is printed on the physical thing).'
-			),
-		hidden=True
+	@app_commands.command(name='create_artifact', description='GM-only. Create an artifact.',
+#		help=(
+#			'Create an artifact, which is any sort of digital content that players can access ' +
+#			'using some sort of username/password setup. Examples include encrypted cloud storage ' +
+#			'(where the player finds the user/pw) and physical devices that the player \"connects\" to ' +
+#			'(by entering a device ID, \"port number\" or similar which is printed on the physical thing).'
+#			),
 		)
-	@commands.has_role(gm_role_name)
-	async def create_artifact_command(self, ctx, name : str=None, content : str=None):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
+	@app_commands.checks.has_role(gm_role_name)
+	async def create_artifact_command(self, interaction: Interaction, name: str, content: str):
 		report = artifacts.create_artifact(name, content)
-		if report is not None:
-			await ctx.send(report)
+		if report is None:
+			report = "Unknown error. Contact system admin."
+		await interaction.response.send_message(report, ephemeral=True)
 
-	@commands.command(
-		name='init_gm',
-		brief='GM-only. Reinitialise the GM context and handles.',
-		hidden=True
-		)
-	@commands.has_role(gm_role_name)
-	async def init_gm_command(self, ctx):
-		allowed = await channels.pre_process_command(ctx)
-		if not allowed:
-			return
+	@app_commands.command(name='init_gm', description='GM-only. Reinitialise the GM context and handles.')
+	@app_commands.checks.has_role(gm_role_name)
+	async def init_gm_command(self, interaction: Interaction):
+		await interaction.response.defer(ephemeral=True)
 		async with handles.semaphore():
 			await init(clear_all=True)
-		await ctx.send('Done.')
+		await interaction.followup.send('Done.', ephemeral=True)
 
 
-def setup(bot):
-	bot.add_cog(GmCog(bot))
+async def setup(bot):
+	await bot.add_cog(GmCog(bot))
 
 async def init(clear_all : bool=False):
 	exists = actors.actor_exists(gm_actor_id)

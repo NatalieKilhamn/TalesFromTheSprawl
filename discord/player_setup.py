@@ -124,7 +124,7 @@ async def setup_handles_and_welcome_new_player(player : PlayerData, main_handle 
 
 	info = read_player_setup_info(main_handle)
 
-	content = f'Welcome to the matrix_client, **{main_handle}**. This is your command line. To see all commands, type \"**.help**\"\n'
+	content = f'Welcome to the matrix_client, **{main_handle}**. This is your command line but you can issue commands anywhere.\n'
 	content += f'Your account ID is {player.player_id}. All channels ending with {player.player_id} are only visible to you.\n'
 	content += f'In all other channels, your posts will be shown under your current **handle** ({main_handle}).'
 	await channel.send(content)
@@ -132,17 +132,17 @@ async def setup_handles_and_welcome_new_player(player : PlayerData, main_handle 
 	content = '=== **HANDLES** ===\n'
 	content += 'You can create and switch handles freely using the following commands:\n'
 	content += '\n'
-	content += '> **.handle** *new_handle*\n'
+	content += '> **/handle** *new_handle*\n'
 	content += '  Switch to handle - if it does not already exist, it will be created for you.\n'
 	content += '  Regular handles cannot be deleted, but you can just abandon it if you don\'t need it.\n'
 	content += '\n'
-	content += '> **.handle** / **.handles**\n'
+	content += '> **/show_handle** / **/handles**\n'
 	content += '  Show you what your current handle is / show all your handles.\n'
 	content += '\n'
-	content += '> **.burner** *new_handle*\n'
+	content += '> **/burner** *new_handle*\n'
 	content += '  Switch to a burner handle - if it does not already exist, it will be created for you.\n'
 	content += '\n'
-	content += '> **.burn** *burner_handle*\n'
+	content += '> **/burn** *burner_handle*\n'
 	content += '  Destroy a burner handle forever.\n'
 	content += '  While a burner handle is active, it can possibly be traced.\n'
 	content += '  After burning it, its ownership cannot be traced.\n'
@@ -165,13 +165,13 @@ async def setup_handles_and_welcome_new_player(player : PlayerData, main_handle 
 	content = '=== **MONEY** ===\n'
 	content += 'Each handle has its own balance (money). Commands related to money:\n'
 	content += '\n'
-	content += '> **.balance**\n'
+	content += '> **/balance**\n'
 	content += '  Show the current balance of all handles you control.\n'
 	content += '\n'
-	content += '> **.collect**\n'
+	content += '> **/collect**\n'
 	content += '  Transfer all money from all handles you control to the one you are currently using.\n'
 	content += '\n'
-	content += '> **.pay** *recipient* *amount*\n'
+	content += '> **/pay** *recipient* *amount*\n'
 	content += '  Transfer money from your current handle to the recipient.\n'
 	content += '  You can of course use this to transfer money to another handle that you also own.\n'
 	content += '\n'
@@ -259,7 +259,7 @@ def get_all_connected_aliases_of_type_report(handle_type : HandleTypes, last_exa
 		return ''
 	elif handle_type == HandleTypes.Burner:
 		example_burner = 'burner_name' if last_example is None else last_example
-		return f'  (Use for example \".burn {example_burner}\" to destroy a burner and erase its tracks)\n'
+		return f'  (Use for example \"/burn {example_burner}\" to destroy a burner and erase its tracks)\n'
 	elif handle_type == HandleTypes.NPC:
 		return '  [OFF: NPC handles let you act as someone else, and cannot be traced to your other handles.]\n'
 
@@ -310,7 +310,7 @@ async def setup_shops(actor_id : str, shop_names : List[str], is_owner : bool):
 			shop_actor : Actor = actors.read_actor(shop.shop_id)
 			report += f'  Financial status: {channels.clickable_channel_id_ref(shop_actor.finance_channel_id)}.\n'
 			report += f'  Business chat hub: {channels.clickable_channel_id_ref(shop_actor.chat_channel_id)}.\n'
-			report += f'  Note: customers will see you as **{handle.handle_id}** unless you change it with \".set_tips\"!'
+			report += f'  Note: customers will see you as **{handle.handle_id}** unless you change it with \"/set_tips\"!'
 		yield report
 
 

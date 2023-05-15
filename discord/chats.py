@@ -5,6 +5,9 @@ import simplejson
 from configobj import ConfigObj
 from enum import Enum
 from discord.ext import commands
+from discord import app_commands, Interaction
+from discord.enums import AppCommandPermissionType
+
 
 import actors
 import players
@@ -34,138 +37,125 @@ class ChatsCog(commands.Cog, name='chats'):
 	# Commands related to chats
 	# These only work in cmd_line channels
 
-	@commands.command(
+	@app_commands.command(
 		name='chat',
-		brief='Open a chat session with another user.',
-		help=(
-			'Open a chat session between you (using your current handle) and another user. ' +
-			'If you have never had a chat between those two handles before, one will be created. ' +
-			'All your active chats are shown in your personal chat_hub channel, where you can open and ' +
-			'close the connections as needed.\n' +
-			'You can close a chat and re-open it and all the chat history will be stored, except for file attachments. ' +
-			'Note: you cannot change your handle in an existing chat, so make sure to start the chat from the correct one! ' +
-			'If you switch handles and open a new chat, the other person can see that two handles have tried to contact them, ' +
-			'but they will not see that they belong to the same person.'
+		description='Open a chat session with another user.',
+#		help=(
+#			'Open a chat session between you (using your current handle) and another user. ' +
+#			'If you have never had a chat between those two handles before, one will be created. ' +
+#			'All your active chats are shown in your personal chat_hub channel, where you can open and ' +
+#			'close the connections as needed.\n' +
+#			'You can close a chat and re-open it and all the chat history will be stored, except for file attachments. ' +
+#			'Note: you cannot change your handle in an existing chat, so make sure to start the chat from the correct one! ' +
+#			'If you switch handles and open a new chat, the other person can see that two handles have tried to contact them, ' +
+#			'but they will not see that they belong to the same person.'
+#		)
 		)
-		)
-	async def chat_command(self, ctx, handle : str=None):
-		allowed = await channels.pre_process_command(ctx, allow_chat_hub=True)
-		if not allowed:
-			return
-
-		response = None
+	async def chat_command(self, interaction: Interaction, handle: str):
 		if handle is None:
-			response = f'Error: you must say who you want to chat with. Example: \".chat shadow_weaver\"'
+			response = f'Error: you must say who you want to chat with. Example: \"/chat shadow_weaver\"'
+			await interaction.response.send_message(response, ephemeral=True)
 		else:
+			await interaction.response.defer(ephemeral=True)
 			handle = handle.lower()
-			response = await create_chat_from_command(str(ctx.message.author.id), handle)
-		if response is not None:
-			await self.send_command_response(ctx, response)
+			response = await create_chat_from_command(str(interaction.user.id), handle)
+			if response is not None:
+				await interaction.followup.send(response, ephemeral=True)
+			else:
+				await interaction.followup.send("Unknown error. Contact system admin.", ephemeral=True)
 
-	@commands.command(
+	@app_commands.command(
 		name='chat_other',
-		help='Admin only. Open a chat session for someone else.',
-		hidden=True)
-	@commands.has_role('gm')
-	async def chat_other_command(self, ctx,  my_handle : str=None, other_handle : str=None):
-		allowed = await channels.pre_process_command(ctx, allow_chat_hub=False)
-		if not allowed:
+		description='Admin only. Open a chat session for someone else.')
+	@app_commands.checks.has_role('gm')
+	async def chat_other_command(self, interaction: Interaction, from_handle: str, to_handle: str):
+		if from_handle is None:
+			await interaction.response.send_message('Error: you must give two handles to start a chat.', ephemeral=True)
 			return
-		if my_handle is None:
-			await ctx.send('Error: you must give two handles to start a chat.')
-			return
-		elif other_handle is None:
-			report = f'Error: you must give the second handle that should chat with {my_handle}.'
-			await ctx.send(report)
+		elif to_handle is None:
+			report = f'Error: you must give the second handle that should chat with {from_handle}.'
+			await interaction.response.send_message(report, ephemeral=True)
 			return
 
-		my_handle = my_handle.lower()
-		other_handle = other_handle.lower()
-		report = await create_2party_chat_from_handle_id(my_handle, other_handle)
+		await interaction.response.defer(ephemeral=True)
+		from_handle = from_handle.lower()
+		to_handle = to_handle.lower()
+		report = await create_2party_chat_from_handle_id(from_handle, to_handle)
 		if report != None:
-			await ctx.send(report)
+			await interaction.followup.send(report, ephemeral=True)
+		else:
+			await interaction.followup.send("Unknown error. Contact system admin.", ephemeral=True)
 
-	@commands.command(
+	@app_commands.command(
 		name='gm_chat',
-		help='GM only. Open a chat session from the shared GM account.',
-		hidden=True)
-	@commands.has_role('gm')
-	async def gm_chat_command(self, ctx,  other_handle : str=None):
-		allowed = await channels.pre_process_command(ctx, allow_chat_hub=False)
-		if not allowed:
-			return
+		description='GM only. Open a chat session from the shared GM account.')
+	@app_commands.checks.has_role('gm')
+	async def gm_chat_command(self, interaction: Interaction, other_handle: str):
 		if other_handle is None:
 			report = f'Error: you must give the handle to chat with.'
-			await ctx.send(report)
+			await interaction.response.send_message(report, ephemeral=True)
 			return
 
+		await interaction.response.defer(ephemeral=True)
 		my_handle = gm.get_gm_active_handle()
 		other_handle = other_handle.lower()
 		report = await create_2party_chat_from_handle_id(my_handle, other_handle)
 		if report != None:
-			await ctx.send(report)
-
-	@commands.command(
-		name='close_chat',
-		brief='Close a chat session from your end.',
-		help=(
-			'Close a chat session from your end. This will not affect how the other participant sees the chat. ' +
-			f'You can re-open the chat at any time using \".chat\", or by clicking the {emoji_open} in your chat_hub.'
-			)
-		)
-	async def close_chat_command(self, ctx, handle : str=None):
-		allowed = await channels.pre_process_command(ctx, allow_chat_hub=True)
-		if not allowed:
-			return
-		if handle is None:
-			response = f'Error: you must say which chat you want to close. Example: \".close_chat shadow_weaver\"'
+			await interaction.followup.send(report, ephemeral=True)
 		else:
-			handle = handle.lower()
-			response = await close_chat_session_from_command(ctx, handle)
-		if response is not None:
-			await self.send_command_response(ctx, response)
+			await interaction.followup.send("Unknown error. Contact system admin.", ephemeral=True)
 
-	@commands.command(
+	@app_commands.command(
+		name='close_chat',
+		description='Close a chat session from your end.',
+#		help=(
+#			'Close a chat session from your end. This will not affect how the other participant sees the chat. ' +
+#			f'You can re-open the chat at any time using \"/chat\", or by clicking the {emoji_open} in your chat_hub.'
+#			)
+		)
+	async def close_chat_command(self, interaction: Interaction, handle: str):
+		if handle is None:
+			response = f'Error: you must say which chat you want to close. Example: \"/close_chat shadow_weaver\"'
+			await interaction.response.send_message(response, ephemeral=True)
+		else:
+			await interaction.response.defer(ephemeral=True)
+			handle = handle.lower()
+			response = await close_chat_session_from_command(interaction.user.id, handle)
+			if response is not None:
+				await interaction.followup.send(response, ephemeral=True)
+			else:
+				await interaction.followup.send("Unknown error. Contact system admin.", ephemeral=True)
+
+	@app_commands.command(
 		name='close_chat_other',
-		help='Admin-only. Close a chat session for someone else.',
-		hidden=True)
-	@commands.has_role('gm')
-	async def close_chat_other_command(self, ctx, my_handle : str, other_handle : str):
-		allowed = await channels.pre_process_command(ctx, allow_chat_hub=False)
-		if not allowed:
-			return
+		description='Admin-only. Close a chat session for someone else.')
+	@app_commands.checks.has_role('gm')
+	async def close_chat_other_command(self, interaction: Interaction, my_handle: str, other_handle: str):
+		await interaction.response.defer(ephemeral=True)
 		my_handle = my_handle.lower()
 		other_handle = other_handle.lower()
 		report = await close_2party_chat_session_from_handle_id(my_handle, other_handle)
 		if report is not None:
-			await ctx.send(report)
+			await interaction.followup.send(report, ephemeral=True)
+		else:
+			await interaction.followup.send("Unknown error. Contact system admin.", ephemeral=True)
 
-	@commands.command(
+	@app_commands.command(
 		name='clear_all_chats',
-		help='Admin-only. Delete all chats and chat channels for all users.',
-		hidden=True)
-	@commands.has_role('gm')
-	async def clear_all_chats_command(self, ctx):
-		allowed = await channels.pre_process_command(ctx, allow_chat_hub=False)
-		if not allowed:
-			return
+		description='Admin-only. Delete all chats and chat channels for all users.')
+	@app_commands.checks.has_role('gm')
+	async def clear_all_chats_command(self, interaction: Interaction):
+		await interaction.response.defer(ephemeral=True)
 		await init(clear_all=True)
-		await ctx.send('Done.')
-
-	async def send_command_response(self, ctx, response : str):
-		if channels.is_cmd_line(ctx.channel.name):
-			await ctx.send(response)
-		elif channels.is_chat_hub(ctx.channel.name):
-			await ctx.send(response, delete_after=10)
-			await server.swallow(ctx.message, alert=False, delay=10);
+		await interaction.followup.send('Done.', ephemeral=True)
 
 
 chats_dir = 'chats'
 chats = ConfigObj(f'{chats_dir}/chats.conf')
 
-def setup(bot):
+async def setup(bot):
 	global chats
-	bot.add_cog(ChatsCog(bot))
+	await bot.add_cog(ChatsCog(bot))
 	chats = ConfigObj(f'{chats_dir}/chats.conf')
 
 channel_limit_per_actor = 5
@@ -732,10 +722,7 @@ async def get_chat_ui_for_inactive_session(guild, chat_state, participant : Chat
 
 async def create_channel_for_chat_session(guild, chat_state, participant : ChatParticipant):
 	archived = participant.session_status in [session_status_open_archive, session_status_closed_archive]
-	if players.is_player(participant.actor_id):
-		category_index = players.get_player_category_index(participant.actor_id)
-	else:
-		category_index = 6
+	category_index = players.get_player_category_index(participant.actor_id)
 	channel = await channels.create_chat_session_channel_no_role(guild, participant.channel_name, read_only=archived, category_index=category_index)
 	await channel.send(
 		(
@@ -888,10 +875,10 @@ async def process_reaction_in_chat_hub(message, emoji : str):
 
 ### Closing chats
 
-async def close_chat_session_from_command(ctx, partner_handle_id : str):
-	my_user_id = str(ctx.message.author.id)
+async def close_chat_session_from_command(user_id: int, partner_handle_id : str):
+	my_user_id = str(user_id)
 	my_actor_id = players.get_player_id(my_user_id)
-	my_handle = handles.get_handle(my_actor_id)
+	my_handle = handles.get_active_handle(my_actor_id)
 	return await close_2party_chat_session(my_handle, partner_handle_id)
 
 async def close_2party_chat_session_from_handle_id(my_handle_id : str, partner_handle_id : str):
@@ -918,7 +905,7 @@ async def close_2party_chat_session(my_handle : Handle, partner_handle_id : str)
 
 	failure_report = await close_chat_session(participant)
 	if failure_report is None:
-		return f'Closed chat session with {partner_handle.handle_id}. To re-open, use \".chat {partner_handle.handle_id}\".'
+		return f'Closed chat session with {partner_handle.handle_id}. To re-open, use \"/chat {partner_handle.handle_id}\".'
 	else:
 		return failure_report
 

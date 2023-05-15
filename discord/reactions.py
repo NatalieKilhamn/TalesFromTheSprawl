@@ -62,8 +62,7 @@ async def find_reaction_recipient_and_message(message_id : int, channel):
 
 	epsilon = datetime.timedelta(milliseconds=500)
 	timestamp = partial_message.created_at + epsilon
-	message_history = await channel.history(limit=20, before=timestamp).flatten()
-	for message in message_history:
+	async for message in channel.history(limit=20, before=timestamp):
 		if message.id == message_id:
 			result.message = message
 		if result.message == None:

@@ -134,10 +134,9 @@ def generate_setup_channel_overwrites(guild):
 async def get_member_from_nick(nick : str):
 	if nick is not None:
 		for guild in guilds:
-			members = await guild.fetch_members(limit=100).flatten()
-			member = discord.utils.find(lambda m: m.nick == nick, members)
-			if member:
-				return member
+			async for member in guild.fetch_members(limit=100):
+				if member.nick == nick:
+					return member
 
 async def get_all_channels_in(guild):
 	return await guild.fetch_channels()
@@ -147,11 +146,22 @@ async def get_all_channels():
 	channels_per_guild = await asyncio.gather(*task_list)
 	return [channel for channels in channels_per_guild for channel in channels]
 
+
+async def send_message_to_all(channel_name: str, content: str):
+	import posting
+	msg_data = posting.MessageData(content, 0)
+	channels = await get_mirrored_channels_by_name(channel_name)
+	tasks = [asyncio.create_task(posting.repost_message_to_channel(channel, msg_data, None)) for channel in channels]
+	await asyncio.gather(*tasks)
+
 async def get_mirrored_channels(channel):
+	return await get_mirrored_channels_by_name(channel.name)
+
+async def get_mirrored_channels_by_name(channel_name: str):
 	result = []
 	for guild in guilds:
 		channels = await get_all_channels_in(guild)
-		channel_in_guild = discord.utils.find(lambda c: c.name == channel.name, channels)
+		channel_in_guild = discord.utils.find(lambda c: c.name == channel_name, channels)
 		if channel_in_guild:
 			result.append(channel_in_guild)
 	return result

@@ -1,6 +1,7 @@
 from typing import Optional
 from configobj import ConfigObj
 import datetime
+import os
 import discord
 
 from custom_types import PostTimestamp
@@ -41,7 +42,7 @@ def is_offline_channel(discord_channel):
     return _category_name(discord_channel) == off_category_name
 
 def is_public_channel(discord_channel):
-    return _category_name(discord_channel) == public_open_category_name
+    return _category_name(discord_channel) == public_open_category_name or _category_name(discord_channel) == shadowlands_category_name
 
 def is_announcement_channel(discord_channel):
     return _category_name(discord_channel) == announcements_category_name
@@ -74,7 +75,7 @@ def is_category_channel(discord_channel, category_name : str, channel_suffix : s
 # e.g. channels under shops_category_name that are nonetheless handled just like public_open_category_name
 
 def is_shop_channel(discord_channel):
-    return _category_name(discord_channel) == shops_category_name
+    return _category_name(discord_channel) == shops_category_name or discord_channel.name == os.getenv('MAIN_SHOP_NAME')
 
 def is_pseudonymous_channel(discord_channel):
     return _category_name(discord_channel) in [public_open_category_name, shadowlands_category_name, groups_category_name]
@@ -121,8 +122,8 @@ async def init():
 
 
 async def init_channels_and_categories(guild):
-    task_list_categories = (asyncio.create_task(_verify_category_exists(guild, cat, channels)) for cat, channels in get_all_categories())
-    await asyncio.gather(*task_list_categories)
+    for cat, channels in get_all_categories():
+        await _verify_category_exists(guild, cat, channels)
 
     for c in guild.channels:
         print("Setting roles for %s" % c.name)
@@ -137,8 +138,12 @@ async def _init_discord_channel(discord_channel):
     if discord_channel.category != None:
         if discord_channel.category.name.startswith(personal_category_base):
             await _init_private_channel(discord_channel)
-        elif discord_channel.category.name == public_open_category_name:
-            await _init_public_open_channel(discord_channel)
+        elif discord_channel.category.name == public_open_category_name or discord_channel.category.name == shadowlands_category_name:
+            if discord_channel.name == os.getenv('MAIN_SHOP_NAME'):
+                # Special case: If shop is in a public open category
+                await _init_common_read_only_channel(discord_channel)
+            else:
+                await _init_public_open_channel(discord_channel)
         elif discord_channel.category.name == shops_category_name:
             await _init_common_read_only_channel(discord_channel)
         elif discord_channel.category.name == groups_category_name:
@@ -166,8 +171,8 @@ async def _verify_category_exists(guild, category_name: str, channels: list):
         print("Category already exists %s:%s" % (guild.name, category_name))
 
     category = next((cat for cat in guild.categories if cat.name == category_name), None)
-    channels_tasks = (asyncio.create_task(_verify_channel_exists(category, channel)) for channel in channels)
-    await asyncio.gather(*channels_tasks)
+    for channel in channels:
+        await _verify_channel_exists(category, channel)
 
 async def _verify_channel_exists(category, channel_name: str):
     if not channel_name in [ch.name for ch in category.channels]:
@@ -223,23 +228,6 @@ async def _init_setup_channel(discord_channel):
 async def make_read_only(channel_id : str, guild_id: Optional[int] = None):
     channel = get_discord_channel(channel_id, guild_id)
     await _set_base_permissions(channel, private=True, read_only=True)
-
-
-### Processing commands in channels
-async def pre_process_command(
-    ctx,
-    allow_cmd_line : bool=True,
-    allow_chat_hub : bool=False,
-    allow_landing_page : bool=False):
-    if is_cmd_line(ctx.channel.name) and allow_cmd_line:
-        return True
-    if is_chat_hub(ctx.channel.name) and allow_chat_hub:
-        return True
-    if is_landing_page(ctx.channel.name) and allow_landing_page:
-        return True
-    await server.swallow(ctx.message, alert=allow_cmd_line);
-    return False
-
 
 
 ### Anonymous channels:
@@ -347,11 +335,7 @@ async def get_all_chat_hub_channels(channel_suffix : str=None):
 
 async def create_personal_channel(guild, role, channel_name : str, actor_id : str, read_only : bool=False):
     overwrites = server.generate_overwrites_own_new_private_channel(role, read_only)
-    if actor_id.startswith("u27"):
-        category_index = players.get_player_category_index(actor_id)
-    else:
-        print("Using default category index 6 for non-player %s" % actor_id)
-        category_index = 6
+    category_index = players.get_player_category_index(actor_id)
     category_name = "%s%d" % (personal_category_base, category_index)
     return await create_discord_channel(guild, overwrites, channel_name, category_name)
 
@@ -438,9 +422,10 @@ async def get_all_chat_channels():
 # These are public (open to all players) but read-only
 # The idea is that the channel holds the menu items as messages, and players can react to place their orders
 
-async def create_shop_channel(guild, channel_name : str):
+async def create_shop_channel(guild, channel_name: str):
     overwrites = server.generate_base_overwrites(guild, private = False, read_only = True)
-    return await create_discord_channel(guild, overwrites, channel_name, shops_category_name)
+    category_name = public_open_category_name if channel_name == os.getenv('MAIN_SHOP_NAME') else shops_category_name
+    return await create_discord_channel(guild, overwrites, channel_name, category_name)
 
 async def delete_all_shops():
     channel_list = await get_all_shop_related_channels()
@@ -462,8 +447,8 @@ def is_landing_page(channel_name : str):
 def generate_setup_channel_welcome_msg():
     content = 'Welcome to the in-game matrix system! In order to join the game, you must select your first **handle**. '
     content += 'Your starting money, access to private networks etc. are tied to this.\n\n'
-    content += 'To select your handle, type \"**.join** *handle*\" below.\n'
-    content += 'For example, if you are shadow_weaver, type \".join shadow_weaver\"\n\n'
+    content += 'To select your handle, type \"**/join** *handle*\" below.\n'
+    content += 'For example, if you are shadow_weaver, type \"/join shadow_weaver\"\n\n'
     content += 'If you are not sure what your main handle is, please contact the organizers.\n'
     content += '==============================='
     return content
